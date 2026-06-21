@@ -13,7 +13,7 @@ from . import agents
 
 
 gym.register(
-    id="Template-Assembly-Benchmark-Direct-v0",
+    id="Assembly-Benchmark-Direct-v0",
     entry_point=f"{__name__}.assembly_benchmark_env:AssemblyBenchmarkEnv",
     disable_env_checker=True,
     kwargs={
