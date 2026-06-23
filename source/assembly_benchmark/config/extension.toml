@@ -7,12 +7,12 @@ version = "0.1.0"
 category = "isaaclab"
 readme  = "README.md"
 
-title = "Extension Template"
+title = "Assembly Benchmark"
 author = "Isaac Lab Project Developers"
 maintainer = "Isaac Lab Project Developers"
-description="Extension Template for Isaac Lab"
-repository = "https://github.com/isaac-sim/IsaacLab.git"
-keywords = ["extension", "template", "isaaclab"]
+description="Isaac Lab extension for assembly benchmark tasks and Galaxea R1 Pro smoke tests"
+repository = ""
+keywords = ["extension", "isaaclab", "assembly", "r1_pro"]
 
 [dependencies]
 "isaaclab" = {}

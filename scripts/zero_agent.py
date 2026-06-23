@@ -22,6 +22,10 @@ parser.add_argument("--task", type=str, default=None, help="Name of the task.")
 AppLauncher.add_app_launcher_args(parser)
 # parse the arguments
 args_cli = parser.parse_args()
+args_cli_device_explicit = getattr(args_cli, "device_explicit", False)
+if args_cli.task is not None and "R1Pro" in args_cli.task and not args_cli_device_explicit:
+    args_cli.device = "cpu"
+    print("[INFO]: R1 Pro smoke tasks default to CPU simulation. Pass --device explicitly to override.")
 
 # launch omniverse app
 app_launcher = AppLauncher(args_cli)

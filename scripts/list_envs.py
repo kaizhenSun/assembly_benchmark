@@ -9,8 +9,7 @@ Script to print all the available environments in Isaac Lab.
 The script iterates over all registered environments and stores the details in a table.
 It prints the name of the environment, the entry point and the config file.
 
-All the environments are registered in the `assembly_benchmark` extension. They start
-with `Isaac` in their name.
+All the environments are registered in the `assembly_benchmark` extension.
 """
 
 """Launch Isaac Sim Simulator first."""
@@ -26,7 +25,7 @@ parser.add_argument("--keyword", type=str, default=None, help="Keyword to filter
 args_cli = parser.parse_args()
 
 # launch omniverse app
-app_launcher = AppLauncher(headless=True)
+app_launcher = AppLauncher(headless=True, device="cpu")
 simulation_app = app_launcher.app
 
 
