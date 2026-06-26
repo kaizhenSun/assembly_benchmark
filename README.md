@@ -10,6 +10,7 @@ Assembly-R1Pro-Joint-Direct-v0
 Assembly-R1Pro-IK-Direct-v0
 Assembly-R1Pro-BlocksStackEasy-Joint-Direct-v0
 Assembly-R1Pro-BlocksStackEasy-IK-Direct-v0
+Assembly-R1Pro-OneLegScene-Direct-v0
 ```
 
 ## Requirements
@@ -72,6 +73,17 @@ python scripts/zero_agent.py --task=Assembly-R1Pro-BlocksStackEasy-IK-Direct-v0 
 The BlocksStackEasy migration includes the R1 Pro, tabletop, two dynamic colored blocks, SceneCfg-defined block
 reset poses, sparse stack-success reward, and timeout/success termination. It does not include the original
 GalaxeaManipSim expert solution, demo collection, RelaxedIK, or camera observation pipeline.
+
+Run the migrated FurnitureBench one_leg scene loader:
+
+```bash
+python scripts/zero_agent.py --task=Assembly-R1Pro-OneLegScene-Direct-v0 --num_envs 1 --device cpu --disable_fabric --headless
+```
+
+The one_leg scene loader includes the R1 Pro BlocksStackEasy tabletop, FurnitureBench base tag/obstacles, and the five
+square-table one_leg reset parts. It does not load the FurnitureBench table or surrounding background cloth, and only
+validates scene layout and asset loading; it does not include FurnitureBench's scripted assembly policy, camera
+observations, success reward, or data collection.
 
 Run the scripted IK physical auto-grasp demo for BlocksStackEasy:
 
@@ -155,6 +167,7 @@ source/assembly_benchmark/
     tasks/direct/assembly_benchmark/   # task registration, environment, config, agents
     tasks/direct/r1_pro/               # R1 Pro smoke tasks
     tasks/direct/r1_pro_blocks_stack_easy/ # R1 Pro BlocksStackEasy task shells
+    tasks/direct/r1_pro_one_leg_scene/ # R1 Pro FurnitureBench one_leg scene loader
   config/extension.toml                # Isaac Lab extension metadata
 
 scripts/
