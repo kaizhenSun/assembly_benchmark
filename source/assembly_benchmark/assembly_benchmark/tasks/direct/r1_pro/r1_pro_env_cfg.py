@@ -34,7 +34,7 @@ class AssemblyR1ProEnvCfg(DirectRLEnvCfg):
     observation_space = 50
     state_space = 0
 
-    sim: SimulationCfg = SimulationCfg(dt=1 / 120, render_interval=decimation, device="cpu")
+    sim: SimulationCfg = SimulationCfg(dt=1 / 120, render_interval=decimation)
     scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=16, env_spacing=4.0, replicate_physics=True)
     robot_cfg = R1_PRO_CFG.replace(prim_path="/World/envs/env_.*/Robot")
 

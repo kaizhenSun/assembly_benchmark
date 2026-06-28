@@ -77,7 +77,7 @@ GalaxeaManipSim expert solution, demo collection, RelaxedIK, or camera observati
 Run the migrated FurnitureBench one_leg scene loader:
 
 ```bash
-python scripts/zero_agent.py --task=Assembly-R1Pro-OneLegScene-Direct-v0 --num_envs 1 --device cpu --disable_fabric --headless
+python scripts/zero_agent.py --task=Assembly-R1Pro-OneLegScene-Direct-v0 --num_envs 1 --device cuda:0 --headless
 ```
 
 The one_leg scene loader includes the R1 Pro BlocksStackEasy tabletop, FurnitureBench base tag/obstacles, and the five
@@ -88,7 +88,7 @@ observations, success reward, or data collection.
 Run the scripted IK physical auto-grasp demo for BlocksStackEasy:
 
 ```bash
-python scripts/tools/run_r1_pro_blocks_stack_easy_auto_grasp.py --num_envs 1 --device cpu --disable_fabric
+python scripts/tools/run_r1_pro_blocks_stack_easy_auto_grasp.py --num_envs 1 --device cuda:0
 ```
 
 This default mode uses real gripper-object contact after reset: the script does not attach, carry, or snap blocks by
@@ -96,47 +96,27 @@ writing their poses. It is a scripted IK demo, not an RL policy or the original 
 debugging with the old pose-attachment helper:
 
 ```bash
-python scripts/tools/run_r1_pro_blocks_stack_easy_auto_grasp.py --grasp_mode kinematic --num_envs 1 --device cpu --disable_fabric
+python scripts/tools/run_r1_pro_blocks_stack_easy_auto_grasp.py --grasp_mode kinematic --num_envs 1 --device cuda:0
 ```
 
-R1 Pro smoke tasks default to CPU simulation in `zero_agent.py` and `random_agent.py` unless `--device` is passed
-explicitly. For a low-memory GPU smoke test, prefer headless performance mode:
+R1 Pro tasks follow Isaac Lab's normal CUDA/Fabric defaults. For a headless GPU smoke test, use performance rendering:
 
 ```bash
 python scripts/zero_agent.py --task=Assembly-R1Pro-IK-Direct-v0 --num_envs 1 --device cuda:0 --headless --rendering_mode performance
 ```
 
-Run a deterministic IK tracking check:
-
-```bash
-python scripts/tools/check_r1_pro_ik.py --device cuda:0 --headless --rendering_mode performance
-```
-
 Run the visual R1 Pro Differential IK demo:
 
 ```bash
-python scripts/tools/run_r1_pro_diff_ik.py --num_envs 1 --device cpu --disable_fabric
-```
-
-Run the layered R1 Pro robot bring-up checks:
-
-```bash
-python scripts/tools/check_r1_pro_robot.py --mode all --device cuda:0 --headless --rendering_mode performance --strict
-python scripts/tools/check_r1_pro_robot.py --mode all --device cpu --disable_fabric --headless --rendering_mode performance --strict
-```
-
-For real-gravity dynamics diagnostics, run without `--strict` first. Drift threshold misses are reported as warnings
-because this path is for actuator and gravity-compensation tuning:
-
-```bash
-python scripts/tools/check_r1_pro_robot.py --mode dynamics --enable_gravity --device cuda:0 --headless --rendering_mode performance
+python scripts/tools/run_r1_pro_diff_ik.py --num_envs 1 --device cuda:0
 ```
 
 The R1 Pro smoke tasks currently disable robot-link gravity to validate asset loading, joint control, and IK without
 requiring Galaxea's original passive-force gravity compensation layer.
 The actuator gains are tuned to also hold the fixed-base robot under `--enable_gravity` diagnostics.
 
-If GUI GPU simulation reports `PxgCudaDeviceMemoryAllocator failed to allocate memory`, rerun with CPU:
+For explicit CPU/USD compatibility debugging, pass both `--device cpu` and `--disable_fabric`. Disabling Fabric routes
+reads and writes through USD and can make GUI mesh updates appear out of sync with marker updates:
 
 ```bash
 python scripts/zero_agent.py --task=Assembly-R1Pro-IK-Direct-v0 --num_envs 1 --device cpu --disable_fabric
@@ -176,7 +156,6 @@ scripts/
   random_agent.py                      # random-action smoke test
   rsl_rl/                              # RSL-RL train/play scripts
   tools/convert_r1_pro_urdf.py         # R1 Pro URDF to USD conversion
-  tools/check_r1_pro_robot.py          # R1 Pro metadata, joint, dynamics, and IK checks
   tools/run_r1_pro_diff_ik.py          # Visual R1 Pro Differential IK demo
 ```
 
