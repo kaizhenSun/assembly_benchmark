@@ -12,7 +12,7 @@ kinematic attachment path is available as an explicit debug mode.
 
 .. code-block:: bash
 
-    python scripts/tools/run_r1_pro_blocks_stack_easy_auto_grasp.py --num_envs 1 --device cpu --disable_fabric
+    python scripts/tools/run_r1_pro_blocks_stack_easy_auto_grasp.py --num_envs 1 --device cuda:0
 
 """
 
@@ -32,7 +32,12 @@ TASK_NAME = "Assembly-R1Pro-BlocksStackEasy-IK-Direct-v0"
 
 parser = argparse.ArgumentParser(description="Run scripted R1 Pro BlocksStackEasy auto-grasp.")
 parser.add_argument("--num_envs", type=int, default=1, help="Number of environments. Only 1 is supported.")
-parser.add_argument("--disable_fabric", action="store_true", default=False, help="Disable fabric and use USD I/O.")
+parser.add_argument(
+    "--disable_fabric",
+    action="store_true",
+    default=False,
+    help="Debug/compatibility option: disable Fabric and use USD I/O, which may desync GUI mesh updates.",
+)
 parser.add_argument("--phase_steps", type=int, default=90, help="Number of simulation steps for each scripted phase.")
 parser.add_argument(
     "--grasp_mode",
@@ -116,11 +121,6 @@ if args_cli.finger_table_clearance < 0.0:
     raise ValueError("--finger_table_clearance must be non-negative.")
 if args_cli.finger_collision_half_height <= 0.0:
     raise ValueError("--finger_collision_half_height must be positive.")
-
-args_cli_device_explicit = getattr(args_cli, "device_explicit", False)
-if not args_cli_device_explicit:
-    args_cli.device = "cpu"
-    print("[INFO]: R1 Pro auto-grasp demo defaults to CPU simulation. Pass --device explicitly to override.")
 
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app

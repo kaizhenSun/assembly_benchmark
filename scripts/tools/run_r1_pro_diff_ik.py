@@ -11,7 +11,7 @@ tasks.
 
 .. code-block:: bash
 
-    python scripts/tools/run_r1_pro_diff_ik.py --num_envs 1 --device cpu --disable_fabric
+    python scripts/tools/run_r1_pro_diff_ik.py --num_envs 1 --device cuda:0
 
 """
 
@@ -28,7 +28,12 @@ parser.add_argument("--num_envs", type=int, default=1, help="Number of R1 Pro en
 parser.add_argument("--hold_steps", type=int, default=240, help="Number of simulation steps to hold each IK target.")
 parser.add_argument("--settle_steps", type=int, default=60, help="Number of steps to settle at the default pose.")
 parser.add_argument("--enable_gravity", action="store_true", help="Enable gravity on robot links.")
-parser.add_argument("--disable_fabric", action="store_true", default=False, help="Disable fabric and use USD I/O.")
+parser.add_argument(
+    "--disable_fabric",
+    action="store_true",
+    default=False,
+    help="Debug/compatibility option: disable Fabric and use USD I/O, which may desync GUI mesh updates.",
+)
 parser.add_argument("--marker_scale", type=float, default=0.09, help="Scale of current/goal frame markers.")
 parser.add_argument(
     "--print_interval",
@@ -40,11 +45,6 @@ AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
 if args_cli.hold_steps <= 0:
     raise ValueError("--hold_steps must be positive.")
-
-args_cli_device_explicit = getattr(args_cli, "device_explicit", False)
-if not args_cli_device_explicit:
-    args_cli.device = "cpu"
-    print("[INFO]: R1 Pro visual IK demo defaults to CPU simulation. Pass --device explicitly to override.")
 
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app

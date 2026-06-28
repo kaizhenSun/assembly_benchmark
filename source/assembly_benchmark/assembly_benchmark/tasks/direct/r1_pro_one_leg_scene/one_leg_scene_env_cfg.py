@@ -182,7 +182,7 @@ class R1ProOneLegSceneEnvCfg(DirectRLEnvCfg):
     observation_space = 1
     state_space = 0
 
-    sim: SimulationCfg = SimulationCfg(dt=1 / 120, render_interval=decimation, device="cpu")
+    sim: SimulationCfg = SimulationCfg(dt=1 / 120, render_interval=decimation)
     scene: R1ProOneLegSceneCfg = R1ProOneLegSceneCfg(
         num_envs=16, env_spacing=4.0, replicate_physics=True
     )

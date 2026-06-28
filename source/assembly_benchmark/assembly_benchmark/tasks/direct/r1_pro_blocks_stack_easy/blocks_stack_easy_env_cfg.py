@@ -101,7 +101,7 @@ class R1ProBlocksStackEasyEnvCfg(DirectRLEnvCfg):
     observation_space = 78
     state_space = 0
 
-    sim: SimulationCfg = SimulationCfg(dt=1 / 120, render_interval=decimation, device="cpu")
+    sim: SimulationCfg = SimulationCfg(dt=1 / 120, render_interval=decimation)
     scene: R1ProBlocksStackEasySceneCfg = R1ProBlocksStackEasySceneCfg(
         num_envs=16, env_spacing=4.0, replicate_physics=True
     )

@@ -14,7 +14,10 @@ from isaaclab.app import AppLauncher
 # add argparse arguments
 parser = argparse.ArgumentParser(description="Zero agent for Isaac Lab environments.")
 parser.add_argument(
-    "--disable_fabric", action="store_true", default=False, help="Disable fabric and use USD I/O operations."
+    "--disable_fabric",
+    action="store_true",
+    default=False,
+    help="Debug/compatibility option: disable Fabric and use USD I/O operations, which may desync GUI mesh updates.",
 )
 parser.add_argument("--num_envs", type=int, default=None, help="Number of environments to simulate.")
 parser.add_argument("--task", type=str, default=None, help="Name of the task.")
@@ -22,10 +25,6 @@ parser.add_argument("--task", type=str, default=None, help="Name of the task.")
 AppLauncher.add_app_launcher_args(parser)
 # parse the arguments
 args_cli = parser.parse_args()
-args_cli_device_explicit = getattr(args_cli, "device_explicit", False)
-if args_cli.task is not None and "R1Pro" in args_cli.task and not args_cli_device_explicit:
-    args_cli.device = "cpu"
-    print("[INFO]: R1 Pro smoke tasks default to CPU simulation. Pass --device explicitly to override.")
 
 # launch omniverse app
 app_launcher = AppLauncher(args_cli)
