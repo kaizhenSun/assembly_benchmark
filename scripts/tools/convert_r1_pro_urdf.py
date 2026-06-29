@@ -28,8 +28,51 @@ app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
 from isaaclab.sim.converters import UrdfConverter, UrdfConverterCfg  # noqa: E402
+from pxr import Usd, UsdPhysics  # noqa: E402
 
 from assembly_benchmark.robots.r1_pro import R1_PRO_ASSET_DIR, R1_PRO_URDF_PATH, R1_PRO_USD_PATH  # noqa: E402
+
+GRIPPER_COLLISION_PATHS = (
+    "/colliders/left_gripper_link/left_gripper_link_collision",
+    "/colliders/left_gripper_finger_link1/left_gripper_finger_link1_collision",
+    "/colliders/left_gripper_finger_link2/left_gripper_finger_link2_collision",
+    "/colliders/right_gripper_link/right_gripper_link_collision",
+    "/colliders/right_gripper_finger_link1/right_gripper_finger_link1_collision",
+    "/colliders/right_gripper_finger_link2/right_gripper_finger_link2_collision",
+)
+
+
+def _fix_nested_collision_mesh_apis(usd_path: Path) -> None:
+    """Apply collision APIs to the imported STL mesh prim when the importer nests it under Xforms."""
+    physics_usd_path = usd_path.parent / "configuration" / f"{usd_path.stem}_physics.usd"
+    stage_path = physics_usd_path if physics_usd_path.exists() else usd_path
+
+    stage = Usd.Stage.Open(str(stage_path))
+    if stage is None:
+        raise RuntimeError(f"Failed to open USD stage: {stage_path}")
+
+    fixed_mesh_paths: list[str] = []
+    for collision_path in GRIPPER_COLLISION_PATHS:
+        collision_root = stage.GetPrimAtPath(collision_path)
+        if not collision_root.IsValid():
+            raise RuntimeError(f"Could not find gripper collision root in generated USD: {collision_path}")
+
+        mesh_prims = [prim for prim in Usd.PrimRange(collision_root) if prim.GetTypeName() == "Mesh"]
+        if len(mesh_prims) != 1:
+            raise RuntimeError(f"Expected exactly one mesh under {collision_path}, found {len(mesh_prims)}")
+
+        mesh_prim = mesh_prims[0]
+        collision_api = UsdPhysics.CollisionAPI.Apply(mesh_prim)
+        mesh_collision_api = UsdPhysics.MeshCollisionAPI.Apply(mesh_prim)
+        collision_api.CreateCollisionEnabledAttr(True)
+        mesh_collision_api.CreateApproximationAttr(UsdPhysics.Tokens.convexHull)
+        applied_schemas = set(mesh_prim.GetAppliedSchemas())
+        if not {"PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"}.issubset(applied_schemas):
+            raise RuntimeError(f"Failed to apply collision APIs to mesh prim: {mesh_prim.GetPath()}")
+        fixed_mesh_paths.append(str(mesh_prim.GetPath()))
+
+    stage.GetRootLayer().Save()
+    print(f"[INFO] Fixed gripper collision APIs on {len(fixed_mesh_paths)} mesh prims in {stage_path}")
 
 
 def main() -> None:
@@ -53,6 +96,7 @@ def main() -> None:
         ),
     )
     converter = UrdfConverter(cfg)
+    _fix_nested_collision_mesh_apis(Path(converter.usd_path))
     print(f"[INFO] R1 Pro USD written to: {converter.usd_path}")
 
 
