@@ -1167,11 +1167,11 @@
     </visual>
     <collision>
       <origin
-        xyz="0 -0.009999999999999998 0"
+        xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
-        <box
-             size="0.06 0.01 0.04"/>
+        <mesh
+          filename="meshes/left_gripper_finger_link1_collision.STL" />
       </geometry>
     </collision>
   </link>
@@ -1221,11 +1221,11 @@
     </visual>
     <collision>
       <origin
-        xyz="0 0.009999999999999998 0"
+        xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
-        <box
-             size="0.06 0.01 0.04"/>
+        <mesh
+          filename="meshes/left_gripper_finger_link2_collision.STL" />
       </geometry>
     </collision>
   </link>
@@ -1800,11 +1800,11 @@
     </visual>
     <collision>
       <origin
-        xyz="0 -0.009999999999999998 0"
+        xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
-        <box
-             size="0.06 0.01 0.04"/>
+        <mesh
+          filename="meshes/right_gripper_finger_link1_collision.STL" />
       </geometry>
     </collision>
   </link>
@@ -1854,11 +1854,11 @@
     </visual>
     <collision>
       <origin
-        xyz="0 0.009999999999999998 0"
+        xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
-        <box
-             size="0.06 0.01 0.04"/>
+        <mesh
+          filename="meshes/right_gripper_finger_link2_collision.STL" />
       </geometry>
     </collision>
   </link>
