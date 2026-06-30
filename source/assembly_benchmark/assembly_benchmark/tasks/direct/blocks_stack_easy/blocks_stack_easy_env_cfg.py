@@ -27,8 +27,8 @@ from assembly_benchmark.robots.r1_pro import (
 
 
 @configclass
-class R1ProBlocksStackEasySceneCfg(InteractiveSceneCfg):
-    """Scene migrated from GalaxeaManipSim R1ProBlocksStackEasy."""
+class BlocksStackEasySceneCfg(InteractiveSceneCfg):
+    """BlocksStackEasy scene migrated from GalaxeaManipSim."""
 
     ground = AssetBaseCfg(
         prim_path="/World/defaultGroundPlane",
@@ -92,7 +92,7 @@ class R1ProBlocksStackEasySceneCfg(InteractiveSceneCfg):
 
 
 @configclass
-class R1ProBlocksStackEasyEnvCfg(DirectRLEnvCfg):
+class BlocksStackEasyEnvCfg(DirectRLEnvCfg):
     """Base configuration for R1 Pro BlocksStackEasy task shells."""
 
     decimation = 2
@@ -103,7 +103,7 @@ class R1ProBlocksStackEasyEnvCfg(DirectRLEnvCfg):
     state_space = 0
 
     sim: SimulationCfg = SimulationCfg(dt=1 / 120, render_interval=decimation)
-    scene: R1ProBlocksStackEasySceneCfg = R1ProBlocksStackEasySceneCfg(
+    scene: BlocksStackEasySceneCfg = BlocksStackEasySceneCfg(
         num_envs=16, env_spacing=4.0, replicate_physics=True
     )
 
@@ -129,14 +129,14 @@ class R1ProBlocksStackEasyEnvCfg(DirectRLEnvCfg):
 
 
 @configclass
-class R1ProBlocksStackEasyJointEnvCfg(R1ProBlocksStackEasyEnvCfg):
+class BlocksStackEasyJointEnvCfg(BlocksStackEasyEnvCfg):
     """R1 Pro BlocksStackEasy joint-position control task shell."""
 
     control_mode = "joint"
 
 
 @configclass
-class R1ProBlocksStackEasyIKEnvCfg(R1ProBlocksStackEasyEnvCfg):
+class BlocksStackEasyIKEnvCfg(BlocksStackEasyEnvCfg):
     """R1 Pro BlocksStackEasy Differential IK control task shell."""
 
     control_mode = "ik"

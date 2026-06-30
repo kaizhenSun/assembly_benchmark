@@ -56,7 +56,7 @@ def _dynamic_urdf(asset_path: Path, cache_name: str, mass: float) -> sim_utils.U
 
 
 @configclass
-class R1ProOneLegSceneCfg(InteractiveSceneCfg):
+class OneLegSceneCfg(InteractiveSceneCfg):
     """FurnitureBench one_leg scene layout for R1 Pro."""
 
     ground = AssetBaseCfg(
@@ -172,7 +172,7 @@ class R1ProOneLegSceneCfg(InteractiveSceneCfg):
 
 
 @configclass
-class R1ProOneLegSceneEnvCfg(DirectRLEnvCfg):
+class OneLegSceneEnvCfg(DirectRLEnvCfg):
     """Minimal task shell that only loads the FurnitureBench one_leg scene."""
 
     decimation = 2
@@ -183,6 +183,6 @@ class R1ProOneLegSceneEnvCfg(DirectRLEnvCfg):
     state_space = 0
 
     sim: SimulationCfg = SimulationCfg(dt=1 / 120, render_interval=decimation)
-    scene: R1ProOneLegSceneCfg = R1ProOneLegSceneCfg(
+    scene: OneLegSceneCfg = OneLegSceneCfg(
         num_envs=16, env_spacing=4.0, replicate_physics=True
     )

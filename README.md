@@ -6,8 +6,6 @@ The extension registers these tasks:
 
 ```text
 Assembly-Benchmark-Direct-v0
-Assembly-R1Pro-Joint-Direct-v0
-Assembly-R1Pro-IK-Direct-v0
 Assembly-R1Pro-BlocksStackEasy-Joint-Direct-v0
 Assembly-R1Pro-BlocksStackEasy-IK-Direct-v0
 Assembly-R1Pro-OneLegScene-Direct-v0
@@ -47,20 +45,12 @@ Run a zero-action smoke test:
 
 ```bash
 python scripts/zero_agent.py --task=Assembly-Benchmark-Direct-v0
-python scripts/zero_agent.py --task=Assembly-R1Pro-Joint-Direct-v0 --num_envs 1
 ```
 
 Run a random-action smoke test:
 
 ```bash
 python scripts/random_agent.py --task=Assembly-Benchmark-Direct-v0
-python scripts/random_agent.py --task=Assembly-R1Pro-Joint-Direct-v0 --num_envs 1
-```
-
-Run the R1 Pro IK smoke task:
-
-```bash
-python scripts/zero_agent.py --task=Assembly-R1Pro-IK-Direct-v0 --num_envs 1
 ```
 
 Run the migrated R1 Pro BlocksStackEasy task shells:
@@ -130,10 +120,10 @@ The teleop script requires a GUI window. Use `W/S`, `A/D`, and `Q/E` to translat
 normal gripper-object contact for block interaction. `--print_joint_angles` follows `--print_interval` and prints env0
 joint positions in radians.
 
-R1 Pro tasks follow Isaac Lab's normal CUDA/Fabric defaults. For a headless GPU smoke test, use performance rendering:
+R1 Pro tasks follow Isaac Lab's normal CUDA/Fabric defaults. For a headless GPU check, use performance rendering:
 
 ```bash
-python scripts/zero_agent.py --task=Assembly-R1Pro-IK-Direct-v0 --num_envs 1 --device cuda:0 --headless --rendering_mode performance
+python scripts/zero_agent.py --task=Assembly-R1Pro-BlocksStackEasy-IK-Direct-v0 --num_envs 1 --device cuda:0 --headless --rendering_mode performance
 ```
 
 Run the visual R1 Pro Differential IK demo:
@@ -142,15 +132,11 @@ Run the visual R1 Pro Differential IK demo:
 python scripts/tools/run_r1_pro_diff_ik.py --num_envs 1 --device cuda:0
 ```
 
-The R1 Pro smoke tasks currently disable robot-link gravity to validate asset loading, joint control, and IK without
-requiring Galaxea's original passive-force gravity compensation layer.
-The actuator gains are tuned to also hold the fixed-base robot under `--enable_gravity` diagnostics.
-
 For explicit CPU/USD compatibility debugging, pass both `--device cpu` and `--disable_fabric`. Disabling Fabric routes
 reads and writes through USD and can make GUI mesh updates appear out of sync with marker updates:
 
 ```bash
-python scripts/zero_agent.py --task=Assembly-R1Pro-IK-Direct-v0 --num_envs 1 --device cpu --disable_fabric
+python scripts/zero_agent.py --task=Assembly-R1Pro-BlocksStackEasy-IK-Direct-v0 --num_envs 1 --device cpu --disable_fabric
 ```
 
 Train with RSL-RL:
@@ -175,10 +161,10 @@ source/assembly_benchmark/
     assets/robots/r1_pro/              # Galaxea R1 Pro URDF, meshes, configs, generated USD
     controllers/                       # R1 Pro joint and Differential IK controllers
     robots/                            # Isaac Lab ArticulationCfg definitions
-    tasks/direct/assembly_benchmark/   # task registration, environment, config, agents
-    tasks/direct/r1_pro/               # R1 Pro smoke tasks
-    tasks/direct/r1_pro_blocks_stack_easy/ # R1 Pro BlocksStackEasy task shells
-    tasks/direct/r1_pro_one_leg_scene/ # R1 Pro FurnitureBench one_leg scene loader
+    tasks/direct/
+      assembly_benchmark/              # task registration, environment, config, agents
+      blocks_stack_easy/               # R1 Pro BlocksStackEasy task shells
+      one_leg_scene/                   # R1 Pro FurnitureBench one_leg scene loader
   config/extension.toml                # Isaac Lab extension metadata
 
 scripts/
