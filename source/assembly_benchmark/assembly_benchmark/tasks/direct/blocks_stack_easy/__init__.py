@@ -9,18 +9,18 @@ import gymnasium as gym
 
 gym.register(
     id="Assembly-R1Pro-BlocksStackEasy-Joint-Direct-v0",
-    entry_point=f"{__name__}.blocks_stack_easy_env:R1ProBlocksStackEasyEnv",
+    entry_point=f"{__name__}.blocks_stack_easy_env:BlocksStackEasyEnv",
     disable_env_checker=True,
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.blocks_stack_easy_env_cfg:R1ProBlocksStackEasyJointEnvCfg",
+        "env_cfg_entry_point": f"{__name__}.blocks_stack_easy_env_cfg:BlocksStackEasyJointEnvCfg",
     },
 )
 
 gym.register(
     id="Assembly-R1Pro-BlocksStackEasy-IK-Direct-v0",
-    entry_point=f"{__name__}.blocks_stack_easy_env:R1ProBlocksStackEasyEnv",
+    entry_point=f"{__name__}.blocks_stack_easy_env:BlocksStackEasyEnv",
     disable_env_checker=True,
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.blocks_stack_easy_env_cfg:R1ProBlocksStackEasyIKEnvCfg",
+        "env_cfg_entry_point": f"{__name__}.blocks_stack_easy_env_cfg:BlocksStackEasyIKEnvCfg",
     },
 )

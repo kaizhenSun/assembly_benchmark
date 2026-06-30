@@ -11,16 +11,16 @@ import torch
 
 from isaaclab.envs import DirectRLEnv
 
-from .one_leg_scene_env_cfg import R1ProOneLegSceneEnvCfg
+from .one_leg_scene_env_cfg import OneLegSceneEnvCfg
 
 
-class R1ProOneLegSceneEnv(DirectRLEnv):
+class OneLegSceneEnv(DirectRLEnv):
     """Minimal environment that loads the R1 Pro FurnitureBench one_leg scene."""
 
-    cfg: R1ProOneLegSceneEnvCfg
+    cfg: OneLegSceneEnvCfg
 
     def __init__(
-        self, cfg: R1ProOneLegSceneEnvCfg, render_mode: str | None = None, **kwargs
+        self, cfg: OneLegSceneEnvCfg, render_mode: str | None = None, **kwargs
     ):
         super().__init__(cfg, render_mode, **kwargs)
         self.actions = torch.zeros((self.num_envs, self.cfg.action_space), device=self.device)

@@ -9,22 +9,25 @@ from collections.abc import Sequence
 
 import torch
 
-import isaaclab.sim as sim_utils
-from isaaclab.assets import Articulation
 from isaaclab.envs import DirectRLEnv
 from isaaclab.utils.math import subtract_frame_transforms
 
-from assembly_benchmark.controllers import BimanualDifferentialIKController, BimanualJointPositionController
+from assembly_benchmark.controllers import (
+    BimanualDifferentialIKController,
+    BimanualJointPositionController,
+)
 
-from .r1_pro_env_cfg import AssemblyR1ProEnvCfg
+from .blocks_stack_easy_env_cfg import BlocksStackEasyEnvCfg
 
 
-class AssemblyR1ProEnv(DirectRLEnv):
-    """Direct R1 Pro smoke environment for validating assets and controllers."""
+class BlocksStackEasyEnv(DirectRLEnv):
+    """R1 Pro BlocksStackEasy task shell migrated from GalaxeaManipSim."""
 
-    cfg: AssemblyR1ProEnvCfg
+    cfg: BlocksStackEasyEnvCfg
 
-    def __init__(self, cfg: AssemblyR1ProEnvCfg, render_mode: str | None = None, **kwargs):
+    def __init__(
+        self, cfg: BlocksStackEasyEnvCfg, render_mode: str | None = None, **kwargs
+    ):
         super().__init__(cfg, render_mode, **kwargs)
 
         if self.cfg.control_mode == "joint":
@@ -66,16 +69,48 @@ class AssemblyR1ProEnv(DirectRLEnv):
         self.actions = torch.zeros((self.num_envs, self.cfg.action_space), device=self.device)
         self.joint_targets = self.robot.data.default_joint_pos[:, self.controlled_joint_ids].clone()
 
-    def _setup_scene(self):
-        self.robot = Articulation(self.cfg.robot_cfg)
-        self.scene.clone_environments(copy_from_source=False)
-        if self.device == "cpu":
-            self.scene.filter_collisions(global_prim_paths=[])
-        self.scene.articulations["robot"] = self.robot
+        block_half_size = 0.5 * float(self.cfg.scene.block1.spawn.size[2])
+        table_surface_z = (
+            float(self.cfg.scene.tabletop.init_state.pos[2])
+            + 0.5 * float(self.cfg.scene.tabletop.spawn.size[2])
+        )
+        block1_init_pos = torch.tensor(
+            self.cfg.scene.block1.init_state.pos, dtype=torch.float32, device=self.device
+        )
+        block2_init_pos = torch.tensor(
+            self.cfg.scene.block2.init_state.pos, dtype=torch.float32, device=self.device
+        )
+        target_xy = 0.5 * (block1_init_pos[:2] + block2_init_pos[:2])
+        block1_target_z = torch.tensor(
+            table_surface_z + block_half_size, dtype=torch.float32, device=self.device
+        )
+        block2_target_z = torch.tensor(
+            table_surface_z + 3.0 * block_half_size, dtype=torch.float32, device=self.device
+        )
+        self.block_target_positions = torch.stack(
+            (
+                torch.stack((target_xy[0], target_xy[1], block1_target_z)),
+                torch.stack((target_xy[0], target_xy[1], block2_target_z)),
+            ),
+            dim=0,
+        )
+        target_quat = torch.tensor((1.0, 0.0, 0.0, 0.0), dtype=torch.float32, device=self.device)
+        self.block_target_poses = torch.cat(
+            (
+                self.block_target_positions,
+                target_quat.repeat(2, 1),
+            ),
+            dim=-1,
+        )
+        self.success_tolerance = torch.tensor(
+            self.cfg.success_tolerance, dtype=torch.float32, device=self.device
+        )
 
-        light_cfg = sim_utils.DomeLightCfg(intensity=2000.0, color=(0.75, 0.75, 0.75))
-        light_cfg.func("/World/Light", light_cfg)
-        self.sim.set_camera_view(eye=(3.0, 3.0, 2.0), target=(0.0, 0.0, 0.8))
+    def _setup_scene(self) -> None:
+        self.robot = self.scene["robot"]
+        self.block1 = self.scene["block1"]
+        self.block2 = self.scene["block2"]
+        self.sim.set_camera_view(eye=(2.2, 1.6, 1.7), target=(0.7, 0.0, 0.9))
 
     def _pre_physics_step(self, actions: torch.Tensor) -> None:
         self.actions = actions.clone()
@@ -86,34 +121,31 @@ class AssemblyR1ProEnv(DirectRLEnv):
 
     def _get_observations(self) -> dict:
         left_ee_pose_b, right_ee_pose_b = self._get_ee_poses_in_root_frame()
+        block1_pose = self._object_pose_in_env_frame(self.block1)
+        block2_pose = self._object_pose_in_env_frame(self.block2)
+        target_poses = self.block_target_poses.flatten().repeat(self.num_envs, 1)
         obs = torch.cat(
             (
                 self.robot.data.joint_pos[:, self.controlled_joint_ids],
                 self.robot.data.joint_vel[:, self.controlled_joint_ids],
                 left_ee_pose_b,
                 right_ee_pose_b,
+                block1_pose,
+                block2_pose,
+                target_poses,
             ),
             dim=-1,
         )
         return {"policy": obs}
 
     def _get_rewards(self) -> torch.Tensor:
-        action_penalty = torch.sum(torch.square(self.actions), dim=-1)
-        joint_limit_penalty = self._joint_limit_penalty()
-        return (
-            torch.full((self.num_envs,), self.cfg.rew_scale_alive, device=self.device)
-            + self.cfg.rew_scale_action_penalty * action_penalty
-            + self.cfg.rew_scale_joint_limit * joint_limit_penalty
-        )
+        return self.cfg.rew_scale_success * self._success().float()
 
     def _get_dones(self) -> tuple[torch.Tensor, torch.Tensor]:
         time_out = self.episode_length_buf >= self.max_episode_length - 1
-        finite_joint_state = torch.isfinite(self.robot.data.joint_pos).all(dim=1)
-        finite_joint_state &= torch.isfinite(self.robot.data.joint_vel).all(dim=1)
-        invalid_state = ~finite_joint_state
-        return invalid_state, time_out
+        return self._success(), time_out
 
-    def _reset_idx(self, env_ids: Sequence[int] | None):
+    def _reset_idx(self, env_ids: Sequence[int] | None) -> None:
         if env_ids is None:
             env_ids = self.robot._ALL_INDICES
         super()._reset_idx(env_ids)
@@ -129,21 +161,51 @@ class AssemblyR1ProEnv(DirectRLEnv):
         self.robot.set_joint_position_target(joint_pos, env_ids=env_ids)
         self.controller.reset(env_ids)
 
+        self._reset_rigid_object_to_default(self.block1, env_ids)
+        self._reset_rigid_object_to_default(self.block2, env_ids)
+
     def _get_ee_poses_in_root_frame(self) -> tuple[torch.Tensor, torch.Tensor]:
         root_pose_w = self.robot.data.root_pose_w
         left_ee_pose_w = self.robot.data.body_pose_w[:, self.left_ee_body_idx]
         right_ee_pose_w = self.robot.data.body_pose_w[:, self.right_ee_body_idx]
         left_pos_b, left_quat_b = subtract_frame_transforms(
-            root_pose_w[:, :3], root_pose_w[:, 3:7], left_ee_pose_w[:, :3], left_ee_pose_w[:, 3:7]
+            root_pose_w[:, :3],
+            root_pose_w[:, 3:7],
+            left_ee_pose_w[:, :3],
+            left_ee_pose_w[:, 3:7],
         )
         right_pos_b, right_quat_b = subtract_frame_transforms(
-            root_pose_w[:, :3], root_pose_w[:, 3:7], right_ee_pose_w[:, :3], right_ee_pose_w[:, 3:7]
+            root_pose_w[:, :3],
+            root_pose_w[:, 3:7],
+            right_ee_pose_w[:, :3],
+            right_ee_pose_w[:, 3:7],
         )
-        return torch.cat((left_pos_b, left_quat_b), dim=-1), torch.cat((right_pos_b, right_quat_b), dim=-1)
+        return (
+            torch.cat((left_pos_b, left_quat_b), dim=-1),
+            torch.cat((right_pos_b, right_quat_b), dim=-1),
+        )
 
-    def _joint_limit_penalty(self) -> torch.Tensor:
-        joint_pos = self.robot.data.joint_pos[:, self.controlled_joint_ids]
-        limits = self.robot.data.soft_joint_pos_limits[:, self.controlled_joint_ids]
-        lower_violation = torch.clamp(limits[..., 0] - joint_pos, min=0.0)
-        upper_violation = torch.clamp(joint_pos - limits[..., 1], min=0.0)
-        return torch.sum(lower_violation + upper_violation, dim=-1)
+    def _object_pose_in_env_frame(self, asset) -> torch.Tensor:
+        pose = asset.data.root_pose_w.clone()
+        pose[:, :3] -= self.scene.env_origins
+        return pose
+
+    def _success(self) -> torch.Tensor:
+        block1_pos = self._object_pose_in_env_frame(self.block1)[:, :3]
+        block2_pos = self._object_pose_in_env_frame(self.block2)[:, :3]
+        block1_success = torch.all(
+            torch.abs(block1_pos - self.block_target_positions[0]) < self.success_tolerance,
+            dim=-1,
+        )
+        block2_success = torch.all(
+            torch.abs(block2_pos - self.block_target_positions[1]) < self.success_tolerance,
+            dim=-1,
+        )
+        return block1_success & block2_success
+
+    def _reset_rigid_object_to_default(self, asset, env_ids: torch.Tensor) -> None:
+        root_state = asset.data.default_root_state[env_ids].clone()
+        root_state[:, :3] += self.scene.env_origins[env_ids]
+        root_state[:, 7:] = 0.0
+        asset.write_root_pose_to_sim(root_state[:, :7], env_ids)
+        asset.write_root_velocity_to_sim(root_state[:, 7:], env_ids)
