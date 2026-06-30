@@ -47,10 +47,31 @@ parser.add_argument(
 parser.add_argument("--marker_scale", type=float, default=0.08, help="Scale of current/target gripper frame markers.")
 parser.add_argument("--disable_markers", action="store_true", help="Disable gripper frame marker visualization.")
 parser.add_argument(
+    "--include_torso_in_ik",
+    action="store_true",
+    help="Include torso joints in a joint bimanual IK solve for this teleop run.",
+)
+parser.add_argument(
+    "--enable_torso_keys",
+    action="store_true",
+    help="Enable a P-toggled keyboard mode for direct torso joint angle control.",
+)
+parser.add_argument(
+    "--torso_step",
+    type=float,
+    default=0.01,
+    help="Joint-angle delta in radians per sim loop while a torso key is held.",
+)
+parser.add_argument(
     "--print_interval",
     type=int,
     default=60,
     help="Print end-effector tracking diagnostics every N control loops. Use 0 to disable.",
+)
+parser.add_argument(
+    "--print_joint_angles",
+    action="store_true",
+    help="Print env0 current joint angles in radians with the periodic diagnostics.",
 )
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
@@ -63,10 +84,16 @@ if args_cli.pos_step <= 0.0:
     raise ValueError("--pos_step must be positive.")
 if args_cli.rot_step <= 0.0:
     raise ValueError("--rot_step must be positive.")
+if args_cli.torso_step <= 0.0:
+    raise ValueError("--torso_step must be positive.")
 if args_cli.marker_scale <= 0.0:
     raise ValueError("--marker_scale must be positive.")
 if args_cli.print_interval < 0:
     raise ValueError("--print_interval must be non-negative.")
+if args_cli.enable_torso_keys and args_cli.include_torso_in_ik:
+    raise ValueError(
+        "--enable_torso_keys cannot be combined with --include_torso_in_ik because both write torso joint targets."
+    )
 
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
@@ -91,6 +118,7 @@ class TeleopState:
         self.mode_index = 0
         self.left_grip = OPEN_GRIPPER
         self.right_grip = OPEN_GRIPPER
+        self.torso_mode = False
         self.reset_requested = False
         self.quit_requested = False
 
@@ -101,6 +129,11 @@ class TeleopState:
     def cycle_mode(self) -> None:
         self.mode_index = (self.mode_index + 1) % len(CONTROL_MODES)
         print(f"[INFO]: Control mode: {self.mode}", flush=True)
+
+    def toggle_torso_mode(self) -> None:
+        self.torso_mode = not self.torso_mode
+        label = "torso" if self.torso_mode else f"arm ({self.mode})"
+        print(f"[INFO]: Keyboard mode: {label}", flush=True)
 
     def toggle_gripper(self) -> None:
         if self.mode == "left":
@@ -146,16 +179,25 @@ def _make_action(left_pose: torch.Tensor, left_grip: float, right_pose: torch.Te
     return actions
 
 
-def _step_without_auto_reset(env, actions: torch.Tensor):
+def _step_without_auto_reset(
+    env,
+    actions: torch.Tensor,
+    extra_joint_targets: tuple[torch.Tensor, list[int]] | None = None,
+):
     """Step the DirectRLEnv physics path without applying its automatic reset."""
     unwrapped = env.unwrapped
     actions = actions.to(unwrapped.device)
+    if extra_joint_targets is not None:
+        extra_target_pos, extra_joint_ids = extra_joint_targets
+        extra_target_pos = extra_target_pos.to(unwrapped.device)
     unwrapped._pre_physics_step(actions)
     is_rendering = unwrapped.sim.has_gui() or unwrapped.sim.has_rtx_sensors()
 
     for _ in range(unwrapped.cfg.decimation):
         unwrapped._sim_step_counter += 1
         unwrapped._apply_action()
+        if extra_joint_targets is not None:
+            unwrapped.robot.set_joint_position_target(extra_target_pos, joint_ids=extra_joint_ids)
         unwrapped.scene.write_data_to_sim()
         unwrapped.sim.step(render=False)
         if unwrapped._sim_step_counter % unwrapped.cfg.sim.render_interval == 0 and is_rendering:
@@ -230,6 +272,41 @@ def _apply_keyboard_delta(
     return left_target, right_target
 
 
+def _resolve_torso_joint_ids(unwrapped) -> list[int]:
+    if not hasattr(unwrapped.cfg, "torso_joint_names"):
+        raise RuntimeError(f"Task '{args_cli.task}' does not expose R1 Pro torso_joint_names.")
+    torso_joint_names = list(unwrapped.cfg.torso_joint_names)
+    if len(torso_joint_names) != 4:
+        raise RuntimeError(f"Expected 4 R1 Pro torso joints, got {len(torso_joint_names)}: {torso_joint_names}")
+    torso_joint_ids, resolved_names = unwrapped.robot.find_joints(torso_joint_names, preserve_order=True)
+    if len(torso_joint_ids) != len(torso_joint_names):
+        raise RuntimeError(f"Could not resolve all torso joints. Requested={torso_joint_names}, found={resolved_names}")
+    return torso_joint_ids
+
+
+def _clamp_torso_targets(unwrapped, torso_targets: torch.Tensor, torso_joint_ids: list[int]) -> torch.Tensor:
+    limits = unwrapped.robot.data.soft_joint_pos_limits[:, torso_joint_ids]
+    return torch.clamp(torso_targets, min=limits[..., 0], max=limits[..., 1])
+
+
+def _current_torso_targets(unwrapped, torso_joint_ids: list[int]) -> torch.Tensor:
+    torso_targets = unwrapped.robot.data.joint_pos[:, torso_joint_ids].clone()
+    return _clamp_torso_targets(unwrapped, torso_targets, torso_joint_ids)
+
+
+def _apply_torso_keyboard_delta(
+    unwrapped,
+    torso_targets: torch.Tensor,
+    torso_joint_ids: list[int],
+    delta_pose: torch.Tensor,
+) -> torch.Tensor:
+    torso_axes = torch.stack((delta_pose[:, 0], delta_pose[:, 1], delta_pose[:, 2], delta_pose[:, 3]), dim=-1)
+    if float(torch.linalg.norm(torso_axes).item()) <= 1.0e-9:
+        return torso_targets
+    torso_targets = torso_targets + torch.sign(torso_axes) * args_cli.torso_step
+    return _clamp_torso_targets(unwrapped, torso_targets, torso_joint_ids)
+
+
 def _reset_env_and_targets(env, teleop_interface: Se3Keyboard, state: TeleopState) -> tuple[torch.Tensor, torch.Tensor]:
     env.reset()
     teleop_interface.reset()
@@ -243,21 +320,34 @@ def _print_bindings() -> None:
     print("[INFO]: Keyboard bindings:")
     print("[INFO]:   W/S A/D Q/E: move current arm in x/y/z")
     print("[INFO]:   Z/X T/G C/V: rotate current arm around x/y/z")
+    if args_cli.enable_torso_keys:
+        print("[INFO]:   P: toggle arm/torso keyboard mode")
+        print("[INFO]:   Torso mode: W/S A/D Q/E Z/X adjust torso_joint1-4")
     print("[INFO]:   N: cycle control mode left/right/both")
     print("[INFO]:   K: toggle gripper for current control mode")
     print("[INFO]:   R: reset environment and targets")
     print("[INFO]:   ESC: quit")
 
 
+def _format_joint_angles(unwrapped, env_id: int = 0) -> str:
+    joint_pos = unwrapped.robot.data.joint_pos[env_id].detach().cpu()
+    return ", ".join(
+        f"{name}={float(pos):.4f}" for name, pos in zip(unwrapped.robot.joint_names, joint_pos, strict=True)
+    )
+
+
 def _print_diagnostics(unwrapped, left_target: torch.Tensor, right_target: torch.Tensor, state: TeleopState) -> None:
     left_pose, right_pose = unwrapped._get_ee_poses_in_root_frame()
     left_error = torch.linalg.norm(left_pose[:, :3] - left_target[:, :3], dim=-1).mean()
     right_error = torch.linalg.norm(right_pose[:, :3] - right_target[:, :3], dim=-1).mean()
+    keyboard_mode = "torso" if state.torso_mode else state.mode
     print(
-        f"[INFO]: mode={state.mode} left_error={float(left_error):.4f} m "
+        f"[INFO]: mode={keyboard_mode} left_error={float(left_error):.4f} m "
         f"right_error={float(right_error):.4f} m "
         f"left_grip={_grip_label(state.left_grip)} right_grip={_grip_label(state.right_grip)}"
     )
+    if args_cli.print_joint_angles:
+        print(f"[INFO]: env_0_joint_angles(rad): {_format_joint_angles(unwrapped)}")
 
 
 def main() -> int:
@@ -267,6 +357,12 @@ def main() -> int:
         num_envs=args_cli.num_envs,
         use_fabric=not args_cli.disable_fabric,
     )
+    if args_cli.include_torso_in_ik:
+        if not hasattr(env_cfg, "torso_joint_names") or not hasattr(env_cfg, "include_torso_in_ik"):
+            raise RuntimeError(f"Task '{args_cli.task}' does not expose R1 Pro torso IK configuration.")
+        env_cfg.include_torso_in_ik = True
+        env_cfg.observation_space += 2 * len(env_cfg.torso_joint_names)
+
     env = gym.make(args_cli.task, cfg=env_cfg)
     unwrapped = env.unwrapped
 
@@ -279,6 +375,11 @@ def main() -> int:
             raise RuntimeError(f"Task '{args_cli.task}' must use the 16D R1 Pro IK action interface.")
 
         state = TeleopState()
+        torso_joint_ids = None
+        torso_targets = None
+        if args_cli.enable_torso_keys:
+            torso_joint_ids = _resolve_torso_joint_ids(unwrapped)
+            torso_targets = _current_torso_targets(unwrapped, torso_joint_ids)
         teleop_interface = Se3Keyboard(
             Se3KeyboardCfg(
                 gripper_term=False,
@@ -291,15 +392,21 @@ def main() -> int:
         teleop_interface.add_callback("K", state.toggle_gripper)
         teleop_interface.add_callback("R", state.request_reset)
         teleop_interface.add_callback("ESCAPE", state.request_quit)
+        if args_cli.enable_torso_keys:
+            teleop_interface.add_callback("P", state.toggle_torso_mode)
 
         markers = None if args_cli.disable_markers else _make_markers()
         left_target, right_target = _reset_env_and_targets(env, teleop_interface, state)
+        if torso_joint_ids is not None:
+            torso_targets = _current_torso_targets(unwrapped, torso_joint_ids)
         _visualize_markers(markers, unwrapped, left_target, right_target)
 
         print(f"[INFO]: Gym observation space: {env.observation_space}")
         print(f"[INFO]: Gym action space: {env.action_space}")
         print(f"[INFO]: Task: {args_cli.task}")
         print(f"[INFO]: Position step: {args_cli.pos_step:.4f} m, rotation step: {args_cli.rot_step:.4f} rad")
+        print(f"[INFO]: Torso IK: enabled={args_cli.include_torso_in_ik}")
+        print(f"[INFO]: Torso keys: enabled={args_cli.enable_torso_keys}, step={args_cli.torso_step:.4f} rad")
         print(f"[INFO]: Control mode: {state.mode}")
         _print_bindings()
 
@@ -307,6 +414,8 @@ def main() -> int:
         while simulation_app.is_running() and not state.quit_requested:
             if state.reset_requested:
                 left_target, right_target = _reset_env_and_targets(env, teleop_interface, state)
+                if torso_joint_ids is not None:
+                    torso_targets = _current_torso_targets(unwrapped, torso_joint_ids)
                 state.reset_requested = False
                 _visualize_markers(markers, unwrapped, left_target, right_target)
                 print("[INFO]: Environment reset complete.", flush=True)
@@ -315,9 +424,17 @@ def main() -> int:
             delta_pose = teleop_interface.advance().view(1, 6)
             if state.quit_requested or state.reset_requested:
                 continue
-            left_target, right_target = _apply_keyboard_delta(left_target, right_target, delta_pose, state.mode)
+            if state.torso_mode:
+                if torso_joint_ids is None or torso_targets is None:
+                    raise RuntimeError("Torso keyboard mode is active but torso control is not initialized.")
+                torso_targets = _apply_torso_keyboard_delta(unwrapped, torso_targets, torso_joint_ids, delta_pose)
+            else:
+                left_target, right_target = _apply_keyboard_delta(left_target, right_target, delta_pose, state.mode)
             actions = _make_action(left_target, state.left_grip, right_target, state.right_grip)
-            _step_without_auto_reset(env, actions)
+            extra_joint_targets = None
+            if torso_joint_ids is not None and torso_targets is not None:
+                extra_joint_targets = (torso_targets, torso_joint_ids)
+            _step_without_auto_reset(env, actions, extra_joint_targets=extra_joint_targets)
             _visualize_markers(markers, unwrapped, left_target, right_target)
 
             if args_cli.print_interval > 0 and count % args_cli.print_interval == 0:

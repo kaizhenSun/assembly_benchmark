@@ -20,6 +20,7 @@ from assembly_benchmark.robots.r1_pro import (
     R1_PRO_RIGHT_EE_LINK_NAME,
     R1_PRO_RIGHT_GRIPPER_JOINT_NAMES,
     R1_PRO_RIGHT_IK_LINK_NAME,
+    R1_PRO_TORSO_JOINT_NAMES,
 )
 
 
@@ -39,6 +40,7 @@ class AssemblyR1ProEnvCfg(DirectRLEnvCfg):
     robot_cfg = R1_PRO_CFG.replace(prim_path="/World/envs/env_.*/Robot")
 
     control_mode = "joint"
+    torso_joint_names = R1_PRO_TORSO_JOINT_NAMES
     left_arm_joint_names = R1_PRO_LEFT_ARM_JOINT_NAMES
     right_arm_joint_names = R1_PRO_RIGHT_ARM_JOINT_NAMES
     left_gripper_joint_names = R1_PRO_LEFT_GRIPPER_JOINT_NAMES
@@ -51,6 +53,7 @@ class AssemblyR1ProEnvCfg(DirectRLEnvCfg):
     arm_action_scale = 0.5
     gripper_min = 0.0
     gripper_max = 0.05
+    include_torso_in_ik = False
 
     rew_scale_alive = 0.1
     rew_scale_action_penalty = -0.01

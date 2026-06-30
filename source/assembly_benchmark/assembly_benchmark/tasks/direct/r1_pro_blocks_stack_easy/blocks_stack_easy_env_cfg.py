@@ -22,6 +22,7 @@ from assembly_benchmark.robots.r1_pro import (
     R1_PRO_RIGHT_EE_LINK_NAME,
     R1_PRO_RIGHT_GRIPPER_JOINT_NAMES,
     R1_PRO_RIGHT_IK_LINK_NAME,
+    R1_PRO_TORSO_JOINT_NAMES,
 )
 
 
@@ -52,7 +53,7 @@ class R1ProBlocksStackEasySceneCfg(InteractiveSceneCfg):
             ),
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.8, 0.8, 0.8)),
         ),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.4, 0.0, 1.0)),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.6, 0.0, 0.75)),
     )
 
     block1 = RigidObjectCfg(
@@ -107,6 +108,7 @@ class R1ProBlocksStackEasyEnvCfg(DirectRLEnvCfg):
     )
 
     control_mode = "joint"
+    torso_joint_names = R1_PRO_TORSO_JOINT_NAMES
     left_arm_joint_names = R1_PRO_LEFT_ARM_JOINT_NAMES
     right_arm_joint_names = R1_PRO_RIGHT_ARM_JOINT_NAMES
     left_gripper_joint_names = R1_PRO_LEFT_GRIPPER_JOINT_NAMES
@@ -119,6 +121,7 @@ class R1ProBlocksStackEasyEnvCfg(DirectRLEnvCfg):
     arm_action_scale = 0.5
     gripper_min = 0.0
     gripper_max = 0.05
+    include_torso_in_ik = False
 
     success_tolerance = (0.025, 0.025, 0.01)
 

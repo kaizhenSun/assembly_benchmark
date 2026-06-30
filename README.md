@@ -105,10 +105,30 @@ Run keyboard teleoperation for the R1 Pro BlocksStackEasy IK scene:
 python scripts/tools/run_r1_pro_keyboard_teleop.py --num_envs 1 --device cuda:0
 ```
 
+To let the torso joints participate in one joint bimanual IK solve during teleoperation:
+
+```bash
+python scripts/tools/run_r1_pro_keyboard_teleop.py --num_envs 1 --device cuda:0 --include_torso_in_ik
+```
+
+To directly adjust the torso joint angles from the keyboard while keeping arm IK unchanged:
+
+```bash
+python scripts/tools/run_r1_pro_keyboard_teleop.py --num_envs 1 --device cuda:0 --enable_torso_keys
+```
+
+To print all current robot joint angles with the periodic teleop diagnostics:
+
+```bash
+python scripts/tools/run_r1_pro_keyboard_teleop.py --num_envs 1 --device cuda:0 --print_joint_angles
+```
+
 The teleop script requires a GUI window. Use `W/S`, `A/D`, and `Q/E` to translate the active gripper, `Z/X`,
 `T/G`, and `C/V` to rotate it, `N` to cycle between left/right/both control, `K` to toggle the active gripper,
-`R` to reset, and `ESC` to quit. It sends the existing bimanual IK action format and uses normal gripper-object
-contact for block interaction.
+`R` to reset, and `ESC` to quit. With `--enable_torso_keys`, press `P` to toggle torso mode; in torso mode,
+`W/S`, `A/D`, `Q/E`, and `Z/X` adjust `torso_joint1-4`. It sends the existing bimanual IK action format and uses
+normal gripper-object contact for block interaction. `--print_joint_angles` follows `--print_interval` and prints env0
+joint positions in radians.
 
 R1 Pro tasks follow Isaac Lab's normal CUDA/Fabric defaults. For a headless GPU smoke test, use performance rendering:
 

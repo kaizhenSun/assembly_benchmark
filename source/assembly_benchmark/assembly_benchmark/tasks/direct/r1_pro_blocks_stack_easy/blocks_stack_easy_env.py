@@ -57,6 +57,8 @@ class R1ProBlocksStackEasyEnv(DirectRLEnv):
                 gripper_max=self.cfg.gripper_max,
                 num_envs=self.num_envs,
                 device=self.device,
+                torso_joint_names=self.cfg.torso_joint_names,
+                include_torso_in_ik=self.cfg.include_torso_in_ik,
             )
         else:
             raise ValueError(f"Unsupported R1 Pro control mode: {self.cfg.control_mode}")
