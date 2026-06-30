@@ -39,6 +39,41 @@ parser.add_argument(
     help="Debug/compatibility option: disable Fabric and use USD I/O, which may desync GUI mesh updates.",
 )
 parser.add_argument("--phase_steps", type=int, default=90, help="Number of simulation steps for each scripted phase.")
+parser.add_argument("--enable_robot_gravity", action="store_true", help="Enable gravity on robot links for this run.")
+parser.add_argument(
+    "--include_torso_in_ik",
+    action="store_true",
+    help="Include torso joints in the bimanual IK solve for this scripted run.",
+)
+parser.add_argument("--torso_stiffness", type=float, default=None, help="Override torso actuator stiffness.")
+parser.add_argument("--torso_damping", type=float, default=None, help="Override torso actuator damping.")
+parser.add_argument("--torso_effort", type=float, default=None, help="Override torso actuator effort limit.")
+parser.add_argument("--torso_armature", type=float, default=None, help="Override torso actuator armature.")
+parser.add_argument("--arm_stiffness", type=float, default=None, help="Override both arm actuator stiffness.")
+parser.add_argument("--arm_damping", type=float, default=None, help="Override both arm actuator damping.")
+parser.add_argument("--arm_effort", type=float, default=None, help="Override both arm actuator effort limit.")
+parser.add_argument("--arm_armature", type=float, default=None, help="Override both arm actuator armature.")
+parser.add_argument("--gripper_stiffness", type=float, default=None, help="Override both gripper actuator stiffness.")
+parser.add_argument("--gripper_damping", type=float, default=None, help="Override both gripper actuator damping.")
+parser.add_argument("--gripper_effort", type=float, default=None, help="Override both gripper actuator effort limit.")
+parser.add_argument("--gripper_armature", type=float, default=None, help="Override both gripper actuator armature.")
+parser.add_argument(
+    "--solver_position_iterations",
+    type=int,
+    default=None,
+    help="Override articulation solver position iterations.",
+)
+parser.add_argument(
+    "--solver_velocity_iterations",
+    type=int,
+    default=None,
+    help="Override articulation solver velocity iterations.",
+)
+parser.add_argument(
+    "--fast_exit",
+    action="store_true",
+    help="Exit the process immediately after the scripted run, avoiding slow Kit shutdown.",
+)
 parser.add_argument(
     "--grasp_mode",
     choices=("physical", "kinematic"),
@@ -105,6 +140,27 @@ if args_cli.num_envs != 1:
     raise ValueError("The scripted BlocksStackEasy auto-grasp demo currently supports only --num_envs 1.")
 if args_cli.phase_steps <= 0:
     raise ValueError("--phase_steps must be positive.")
+for name in (
+    "torso_stiffness",
+    "torso_damping",
+    "torso_effort",
+    "torso_armature",
+    "arm_stiffness",
+    "arm_damping",
+    "arm_effort",
+    "arm_armature",
+    "gripper_stiffness",
+    "gripper_damping",
+    "gripper_effort",
+    "gripper_armature",
+):
+    value = getattr(args_cli, name)
+    if value is not None and value <= 0.0:
+        raise ValueError(f"--{name} must be positive.")
+if args_cli.solver_position_iterations is not None and args_cli.solver_position_iterations <= 0:
+    raise ValueError("--solver_position_iterations must be positive.")
+if args_cli.solver_velocity_iterations is not None and args_cli.solver_velocity_iterations <= 0:
+    raise ValueError("--solver_velocity_iterations must be positive.")
 if args_cli.settle_steps <= 0:
     raise ValueError("--settle_steps must be positive.")
 if args_cli.close_steps <= 0:
@@ -161,6 +217,45 @@ _MARKERS: tuple[
     VisualizationMarkers,
 ] | None = None
 _PLANNED_GRASP_CENTER_POSE_B: torch.Tensor | None = None
+
+
+def _override_actuator(actuator_cfg, **kwargs) -> None:
+    for key, value in kwargs.items():
+        if value is not None:
+            setattr(actuator_cfg, key, value)
+
+
+def _configure_robot_for_run(env_cfg) -> None:
+    robot_cfg = env_cfg.scene.robot
+    if args_cli.enable_robot_gravity:
+        robot_cfg.spawn.rigid_props.disable_gravity = False
+    if args_cli.solver_position_iterations is not None:
+        robot_cfg.spawn.articulation_props.solver_position_iteration_count = args_cli.solver_position_iterations
+    if args_cli.solver_velocity_iterations is not None:
+        robot_cfg.spawn.articulation_props.solver_velocity_iteration_count = args_cli.solver_velocity_iterations
+    _override_actuator(
+        robot_cfg.actuators["torso"],
+        stiffness=args_cli.torso_stiffness,
+        damping=args_cli.torso_damping,
+        effort_limit_sim=args_cli.torso_effort,
+        armature=args_cli.torso_armature,
+    )
+    for actuator_name in ("left_arm", "right_arm"):
+        _override_actuator(
+            robot_cfg.actuators[actuator_name],
+            stiffness=args_cli.arm_stiffness,
+            damping=args_cli.arm_damping,
+            effort_limit_sim=args_cli.arm_effort,
+            armature=args_cli.arm_armature,
+        )
+    for actuator_name in ("left_gripper", "right_gripper"):
+        _override_actuator(
+            robot_cfg.actuators[actuator_name],
+            stiffness=args_cli.gripper_stiffness,
+            damping=args_cli.gripper_damping,
+            effort_limit_sim=args_cli.gripper_effort,
+            armature=args_cli.gripper_armature,
+        )
 
 
 def _make_action(
@@ -241,6 +336,17 @@ def _format_pose(pose: torch.Tensor) -> str:
     pos = ", ".join(f"{value:.4f}" for value in pose_cpu[:3])
     quat = ", ".join(f"{value:.4f}" for value in pose_cpu[3:7])
     return f"pos=[{pos}] quat_wxyz=[{quat}]"
+
+
+def _format_vec(vec: torch.Tensor) -> str:
+    vec_cpu = vec[0].detach().cpu()
+    values = ", ".join(f"{value:.4f}" for value in vec_cpu)
+    return f"[{values}]"
+
+
+def _max_controlled_joint_target_error(unwrapped) -> torch.Tensor:
+    joint_pos = unwrapped.robot.data.joint_pos[:, unwrapped.controlled_joint_ids]
+    return torch.max(torch.abs(joint_pos - unwrapped.joint_targets))
 
 
 def _block_pose_env(unwrapped, block) -> torch.Tensor:
@@ -482,11 +588,13 @@ def _run_phase(
             ee_pose = left_ee_pose if active_arm == "left" else right_ee_pose
             ee_error = torch.linalg.norm(ee_pose[:, :3] - resolved_target_pose[:, :3], dim=-1).mean()
             block_pos = _block_pose_env(unwrapped, block)[:, :3]
-            block_error = torch.linalg.norm(block_pos - block_target_pos, dim=-1).mean()
+            block_error_xyz = block_pos - block_target_pos
+            block_error = torch.linalg.norm(block_error_xyz, dim=-1).mean()
             block_to_ee = torch.linalg.norm(block_pos - ee_pose[:, :3], dim=-1).mean()
             finger_center = _finger_center_in_root_frame(unwrapped, active_arm)
             finger_center_pose = _finger_center_pose_in_root_frame(unwrapped, active_arm)
             block_to_finger = torch.linalg.norm(block_pos - finger_center, dim=-1).mean()
+            max_joint_error = _max_controlled_joint_target_error(unwrapped)
             finger_table_clearance = (
                 finger_center[:, 2] - args_cli.finger_collision_half_height - _table_surface_z(unwrapped)
             ).mean()
@@ -499,6 +607,10 @@ def _run_phase(
                 f"finger_table_clearance={float(finger_table_clearance):.4f} m "
                 f"block_z={float(block_pos[0, 2]):.4f} m block_lift={block_lift:.4f} m "
                 f"block_target_error={float(block_error):.4f} m "
+                f"block_error_xyz={_format_vec(block_error_xyz)} "
+                f"target_b={_format_pose(resolved_target_pose)} "
+                f"block_b={_format_vec(block_pos)} "
+                f"max_joint_target_error={float(max_joint_error):.4f} rad "
                 f"finger_center_b={_format_pose(finger_center_pose)} "
                 f"success={success}"
             )
@@ -806,11 +918,14 @@ def _move_block_physical(
                 return left_pose, right_pose, left_grip, right_grip, target_pose, global_step
 
     final_block_pos = _block_pose_env(unwrapped, block)[:, :3]
-    final_error = torch.linalg.norm(final_block_pos - target_pos, dim=-1).mean()
+    final_error_xyz = final_block_pos - target_pos
+    final_error = torch.linalg.norm(final_error_xyz, dim=-1).mean()
     success = bool(unwrapped._success()[0].item())
     print(
         f"[INFO]: physical block result block={block_label} "
         f"target_error={float(final_error):.4f} m "
+        f"target_error_xyz={_format_vec(final_error_xyz)} "
+        f"block_b={_format_vec(final_block_pos)} target_b={_format_vec(target_pos)} "
         f"final_finger_center_b={_format_pose(_finger_center_pose_in_root_frame(unwrapped, active_arm))} "
         f"success={success}"
     )
@@ -860,6 +975,12 @@ def main() -> int:
         num_envs=args_cli.num_envs,
         use_fabric=not args_cli.disable_fabric,
     )
+    if args_cli.include_torso_in_ik:
+        if not hasattr(env_cfg, "torso_joint_names") or not hasattr(env_cfg, "include_torso_in_ik"):
+            raise RuntimeError(f"Task '{TASK_NAME}' does not expose R1 Pro torso IK configuration.")
+        env_cfg.include_torso_in_ik = True
+        env_cfg.observation_space += 2 * len(env_cfg.torso_joint_names)
+    _configure_robot_for_run(env_cfg)
     env = gym.make(TASK_NAME, cfg=env_cfg)
     unwrapped = env.unwrapped
 
@@ -868,7 +989,21 @@ def main() -> int:
         print(f"[INFO]: Gym action space: {env.action_space}")
         print(f"[INFO]: Grasp mode: {args_cli.grasp_mode}")
         print(f"[INFO]: Grasp orientation: {args_cli.grasp_orientation}")
+        print(f"[INFO]: Torso IK: enabled={args_cli.include_torso_in_ik}")
         print(f"[INFO]: Gripper frame markers: enabled={not args_cli.disable_markers}")
+        print(
+            "[INFO]: Robot dynamics: "
+            f"gravity_enabled={args_cli.enable_robot_gravity} "
+            f"torso_stiffness={unwrapped.cfg.scene.robot.actuators['torso'].stiffness} "
+            f"torso_damping={unwrapped.cfg.scene.robot.actuators['torso'].damping} "
+            f"torso_effort={unwrapped.cfg.scene.robot.actuators['torso'].effort_limit_sim} "
+            f"arm_stiffness={unwrapped.cfg.scene.robot.actuators['left_arm'].stiffness} "
+            f"arm_damping={unwrapped.cfg.scene.robot.actuators['left_arm'].damping} "
+            f"arm_effort={unwrapped.cfg.scene.robot.actuators['left_arm'].effort_limit_sim} "
+            f"gripper_stiffness={unwrapped.cfg.scene.robot.actuators['left_gripper'].stiffness} "
+            f"gripper_damping={unwrapped.cfg.scene.robot.actuators['left_gripper'].damping} "
+            f"gripper_effort={unwrapped.cfg.scene.robot.actuators['left_gripper'].effort_limit_sim}"
+        )
         env.reset()
         _PLANNED_GRASP_CENTER_POSE_B = None
         _MARKERS = None if args_cli.disable_markers else _make_markers()
@@ -941,6 +1076,10 @@ if __name__ == "__main__":
         exit_code = 1
         traceback.print_exc()
     finally:
+        if exit_code == 0 and args_cli.fast_exit:
+            sys.stdout.flush()
+            sys.stderr.flush()
+            os._exit(0)
         if exit_code == 0:
             simulation_app.close()
         else:

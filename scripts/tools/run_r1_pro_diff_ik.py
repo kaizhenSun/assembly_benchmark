@@ -19,15 +19,52 @@ from __future__ import annotations
 
 import argparse
 import copy
+import os
 
 from isaaclab.app import AppLauncher
 
 
 parser = argparse.ArgumentParser(description="Run a visual R1 Pro bimanual Differential IK demo.")
 parser.add_argument("--num_envs", type=int, default=1, help="Number of R1 Pro environments to spawn.")
+parser.add_argument(
+    "--max_steps",
+    type=int,
+    default=0,
+    help="Maximum simulation steps to run. Use 0 to keep running until the app closes.",
+)
 parser.add_argument("--hold_steps", type=int, default=240, help="Number of simulation steps to hold each IK target.")
 parser.add_argument("--settle_steps", type=int, default=60, help="Number of steps to settle at the default pose.")
+parser.add_argument(
+    "--metric_warmup_steps",
+    type=int,
+    default=0,
+    help="Skip this many steps after each target switch when accumulating summary metrics.",
+)
 parser.add_argument("--enable_gravity", action="store_true", help="Enable gravity on robot links.")
+parser.add_argument("--torso_stiffness", type=float, default=None, help="Override torso actuator stiffness.")
+parser.add_argument("--torso_damping", type=float, default=None, help="Override torso actuator damping.")
+parser.add_argument("--torso_effort", type=float, default=None, help="Override torso actuator effort limit.")
+parser.add_argument("--torso_armature", type=float, default=None, help="Override torso actuator armature.")
+parser.add_argument("--arm_stiffness", type=float, default=None, help="Override both arm actuator stiffness.")
+parser.add_argument("--arm_damping", type=float, default=None, help="Override both arm actuator damping.")
+parser.add_argument("--arm_effort", type=float, default=None, help="Override both arm actuator effort limit.")
+parser.add_argument("--arm_armature", type=float, default=None, help="Override both arm actuator armature.")
+parser.add_argument("--gripper_stiffness", type=float, default=None, help="Override both gripper actuator stiffness.")
+parser.add_argument("--gripper_damping", type=float, default=None, help="Override both gripper actuator damping.")
+parser.add_argument("--gripper_effort", type=float, default=None, help="Override both gripper actuator effort limit.")
+parser.add_argument("--gripper_armature", type=float, default=None, help="Override both gripper actuator armature.")
+parser.add_argument(
+    "--solver_position_iterations",
+    type=int,
+    default=None,
+    help="Override articulation solver position iterations.",
+)
+parser.add_argument(
+    "--solver_velocity_iterations",
+    type=int,
+    default=None,
+    help="Override articulation solver velocity iterations.",
+)
 parser.add_argument(
     "--disable_fabric",
     action="store_true",
@@ -35,6 +72,12 @@ parser.add_argument(
     help="Debug/compatibility option: disable Fabric and use USD I/O, which may desync GUI mesh updates.",
 )
 parser.add_argument("--marker_scale", type=float, default=0.09, help="Scale of current/goal frame markers.")
+parser.add_argument("--disable_markers", action="store_true", help="Disable frame marker visualization.")
+parser.add_argument(
+    "--fast_exit",
+    action="store_true",
+    help="Exit the process immediately after finite-step diagnostics, avoiding slow Kit shutdown.",
+)
 parser.add_argument(
     "--print_interval",
     type=int,
@@ -43,8 +86,35 @@ parser.add_argument(
 )
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
+if args_cli.max_steps < 0:
+    raise ValueError("--max_steps must be non-negative.")
 if args_cli.hold_steps <= 0:
     raise ValueError("--hold_steps must be positive.")
+if args_cli.settle_steps < 0:
+    raise ValueError("--settle_steps must be non-negative.")
+if args_cli.metric_warmup_steps < 0:
+    raise ValueError("--metric_warmup_steps must be non-negative.")
+for name in (
+    "torso_stiffness",
+    "torso_damping",
+    "torso_effort",
+    "torso_armature",
+    "arm_stiffness",
+    "arm_damping",
+    "arm_effort",
+    "arm_armature",
+    "gripper_stiffness",
+    "gripper_damping",
+    "gripper_effort",
+    "gripper_armature",
+):
+    value = getattr(args_cli, name)
+    if value is not None and value <= 0.0:
+        raise ValueError(f"--{name} must be positive.")
+if args_cli.solver_position_iterations is not None and args_cli.solver_position_iterations <= 0:
+    raise ValueError("--solver_position_iterations must be positive.")
+if args_cli.solver_velocity_iterations is not None and args_cli.solver_velocity_iterations <= 0:
+    raise ValueError("--solver_velocity_iterations must be positive.")
 
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
@@ -70,6 +140,7 @@ from assembly_benchmark.robots.r1_pro import (
     R1_PRO_RIGHT_EE_LINK_NAME,
     R1_PRO_RIGHT_GRIPPER_JOINT_NAMES,
     R1_PRO_RIGHT_IK_LINK_NAME,
+    R1_PRO_TORSO_JOINT_NAMES,
 )
 
 
@@ -95,8 +166,41 @@ def _build_scene_cfg() -> R1ProDiffIKSceneCfg:
     scene_cfg = R1ProDiffIKSceneCfg(num_envs=args_cli.num_envs, env_spacing=4.0, replicate_physics=True)
     robot_cfg = copy.deepcopy(R1_PRO_CFG).replace(prim_path="{ENV_REGEX_NS}/Robot")
     robot_cfg.spawn.rigid_props.disable_gravity = not args_cli.enable_gravity
+    if args_cli.solver_position_iterations is not None:
+        robot_cfg.spawn.articulation_props.solver_position_iteration_count = args_cli.solver_position_iterations
+    if args_cli.solver_velocity_iterations is not None:
+        robot_cfg.spawn.articulation_props.solver_velocity_iteration_count = args_cli.solver_velocity_iterations
+    _override_actuator(
+        robot_cfg.actuators["torso"],
+        stiffness=args_cli.torso_stiffness,
+        damping=args_cli.torso_damping,
+        effort_limit_sim=args_cli.torso_effort,
+        armature=args_cli.torso_armature,
+    )
+    for actuator_name in ("left_arm", "right_arm"):
+        _override_actuator(
+            robot_cfg.actuators[actuator_name],
+            stiffness=args_cli.arm_stiffness,
+            damping=args_cli.arm_damping,
+            effort_limit_sim=args_cli.arm_effort,
+            armature=args_cli.arm_armature,
+        )
+    for actuator_name in ("left_gripper", "right_gripper"):
+        _override_actuator(
+            robot_cfg.actuators[actuator_name],
+            stiffness=args_cli.gripper_stiffness,
+            damping=args_cli.gripper_damping,
+            effort_limit_sim=args_cli.gripper_effort,
+            armature=args_cli.gripper_armature,
+        )
     scene_cfg.robot = robot_cfg
     return scene_cfg
+
+
+def _override_actuator(actuator_cfg, **kwargs) -> None:
+    for key, value in kwargs.items():
+        if value is not None:
+            setattr(actuator_cfg, key, value)
 
 
 def _reset_robot(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> None:
@@ -146,13 +250,16 @@ def _make_markers() -> tuple[VisualizationMarkers, VisualizationMarkers, Visuali
 
 
 def _visualize_markers(
-    markers: tuple[VisualizationMarkers, VisualizationMarkers, VisualizationMarkers, VisualizationMarkers],
+    markers: tuple[VisualizationMarkers, VisualizationMarkers, VisualizationMarkers, VisualizationMarkers] | None,
     robot,
     left_body_idx: int,
     right_body_idx: int,
     left_target_b: torch.Tensor,
     right_target_b: torch.Tensor,
 ) -> None:
+    if markers is None:
+        return
+
     left_current, left_target, right_current, right_target = markers
     root_pose_w = robot.data.root_pose_w
     left_pose_w = robot.data.body_pose_w[:, left_body_idx]
@@ -214,6 +321,28 @@ def _format_joint_angles(robot, env_id: int = 0) -> str:
     return ", ".join(f"{name}={pos:.4f}" for name, pos in zip(robot.joint_names, joint_pos, strict=True))
 
 
+def _mean_joint_property(robot, property_tensor: torch.Tensor, joint_ids: list[int]) -> float:
+    return float(property_tensor[0, joint_ids].mean())
+
+
+def _max_joint_error(robot) -> torch.Tensor:
+    return torch.max(torch.abs(robot.data.joint_pos - robot.data.joint_pos_target))
+
+
+def _max_applied_torque(robot) -> torch.Tensor:
+    return torch.max(torch.abs(robot.data.applied_torque))
+
+
+def _max_torque_limit_ratio(robot) -> torch.Tensor:
+    limits = robot.data.joint_effort_limits
+    valid = limits > 1.0e-6
+    if not torch.any(valid):
+        return torch.zeros((), dtype=torch.float32, device=robot.device)
+    ratio = torch.zeros_like(limits)
+    ratio[valid] = torch.abs(robot.data.applied_torque[valid]) / limits[valid]
+    return torch.max(ratio)
+
+
 def _target_offsets(device: str) -> list[tuple[str, torch.Tensor, torch.Tensor]]:
     return [
         (
@@ -251,7 +380,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
 
     left_ee_body_idx = controller.left_ee_body_idx
     right_ee_body_idx = controller.right_ee_body_idx
-    markers = _make_markers()
+    markers = None if args_cli.disable_markers else _make_markers()
 
     _reset_robot(sim, scene)
     controller.reset()
@@ -267,10 +396,33 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     offsets = _target_offsets(robot.device)
     current_goal_idx = -1
     count = 0
+    metric_count = 0
+    left_error_sum = 0.0
+    right_error_sum = 0.0
+    joint_error_sum = 0.0
+    max_left_error = 0.0
+    max_right_error = 0.0
+    max_joint_error = 0.0
+    max_torque = 0.0
+    max_torque_ratio = 0.0
     sim_dt = sim.get_physics_dt()
+    torso_joint_ids, _ = robot.find_joints(R1_PRO_TORSO_JOINT_NAMES, preserve_order=True)
     print("[INFO]: Setup complete. Visualizing current EE frames and commanded target frames.")
+    print(
+        "[INFO]: Diagnostic config: "
+        f"gravity_enabled={args_cli.enable_gravity} max_steps={args_cli.max_steps} "
+        f"torso(k={_mean_joint_property(robot, robot.data.default_joint_stiffness, torso_joint_ids):.1f}, "
+        f"d={_mean_joint_property(robot, robot.data.default_joint_damping, torso_joint_ids):.1f}, "
+        f"effort={_mean_joint_property(robot, robot.data.joint_effort_limits, torso_joint_ids):.1f}) "
+        f"arm(k={_mean_joint_property(robot, robot.data.default_joint_stiffness, controller.left_arm_joint_ids):.1f}, "
+        f"d={_mean_joint_property(robot, robot.data.default_joint_damping, controller.left_arm_joint_ids):.1f}, "
+        f"effort={_mean_joint_property(robot, robot.data.joint_effort_limits, controller.left_arm_joint_ids):.1f}) "
+        f"gripper(k={_mean_joint_property(robot, robot.data.default_joint_stiffness, controller.left_gripper_joint_ids):.1f}, "
+        f"d={_mean_joint_property(robot, robot.data.default_joint_damping, controller.left_gripper_joint_ids):.1f}, "
+        f"effort={_mean_joint_property(robot, robot.data.joint_effort_limits, controller.left_gripper_joint_ids):.1f})"
+    )
 
-    while simulation_app.is_running():
+    while simulation_app.is_running() and (args_cli.max_steps == 0 or count < args_cli.max_steps):
         if count % args_cli.hold_steps == 0:
             current_goal_idx = (current_goal_idx + 1) % len(offsets)
             label, left_offset, right_offset = offsets[current_goal_idx]
@@ -296,17 +448,53 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         scene.update(sim_dt)
         _visualize_markers(markers, robot, left_ee_body_idx, right_ee_body_idx, left_target, right_target)
 
+        left_pose, right_pose = _ee_poses_in_root(robot, left_ee_body_idx, right_ee_body_idx)
+        left_error = torch.linalg.norm(left_pose[:, :3] - left_target[:, :3], dim=-1).mean()
+        right_error = torch.linalg.norm(right_pose[:, :3] - right_target[:, :3], dim=-1).mean()
+        joint_error = _max_joint_error(robot)
+        torque = _max_applied_torque(robot)
+        torque_ratio = _max_torque_limit_ratio(robot)
+        left_error_value = float(left_error)
+        right_error_value = float(right_error)
+        joint_error_value = float(joint_error)
+        torque_value = float(torque)
+        torque_ratio_value = float(torque_ratio)
+        if count % args_cli.hold_steps >= args_cli.metric_warmup_steps:
+            left_error_sum += left_error_value
+            right_error_sum += right_error_value
+            joint_error_sum += joint_error_value
+            max_left_error = max(max_left_error, left_error_value)
+            max_right_error = max(max_right_error, right_error_value)
+            max_joint_error = max(max_joint_error, joint_error_value)
+            max_torque = max(max_torque, torque_value)
+            max_torque_ratio = max(max_torque_ratio, torque_ratio_value)
+            metric_count += 1
+
         if args_cli.print_interval > 0 and count % args_cli.print_interval == 0:
-            left_pose, right_pose = _ee_poses_in_root(robot, left_ee_body_idx, right_ee_body_idx)
-            left_error = torch.linalg.norm(left_pose[:, :3] - left_target[:, :3], dim=-1).mean()
-            right_error = torch.linalg.norm(right_pose[:, :3] - right_target[:, :3], dim=-1).mean()
             print(
                 f"[INFO]: target='{label}' left_error={float(left_error):.4f} m "
-                f"right_error={float(right_error):.4f} m"
+                f"right_error={float(right_error):.4f} m "
+                f"max_joint_error={joint_error_value:.4f} rad "
+                f"max_torque={torque_value:.2f} Nm max_torque_ratio={torque_ratio_value:.3f}"
             )
             print(f"[INFO]: env_0_joint_angles(rad): {_format_joint_angles(robot)}")
 
         count += 1
+
+    if metric_count > 0:
+        print(
+            "[SUMMARY]: "
+            f"steps={metric_count} gravity_enabled={args_cli.enable_gravity} "
+            f"metric_warmup_steps={args_cli.metric_warmup_steps} "
+            f"mean_left_error={left_error_sum / metric_count:.5f} m "
+            f"mean_right_error={right_error_sum / metric_count:.5f} m "
+            f"max_left_error={max_left_error:.5f} m "
+            f"max_right_error={max_right_error:.5f} m "
+            f"mean_max_joint_error={joint_error_sum / metric_count:.5f} rad "
+            f"max_joint_error={max_joint_error:.5f} rad "
+            f"max_torque={max_torque:.2f} Nm "
+            f"max_torque_ratio={max_torque_ratio:.3f}"
+        )
 
 
 def main() -> None:
@@ -329,5 +517,7 @@ if __name__ == "__main__":
     try:
         with torch.inference_mode():
             main()
+        if args_cli.fast_exit and args_cli.max_steps > 0:
+            os._exit(0)
     finally:
         simulation_app.close()
