@@ -99,6 +99,17 @@ debugging with the old pose-attachment helper:
 python scripts/tools/run_r1_pro_blocks_stack_easy_auto_grasp.py --grasp_mode kinematic --num_envs 1 --device cuda:0
 ```
 
+Run keyboard teleoperation for the R1 Pro BlocksStackEasy IK scene:
+
+```bash
+python scripts/tools/run_r1_pro_keyboard_teleop.py --num_envs 1 --device cuda:0
+```
+
+The teleop script requires a GUI window. Use `W/S`, `A/D`, and `Q/E` to translate the active gripper, `Z/X`,
+`T/G`, and `C/V` to rotate it, `N` to cycle between left/right/both control, `K` to toggle the active gripper,
+`R` to reset, and `ESC` to quit. It sends the existing bimanual IK action format and uses normal gripper-object
+contact for block interaction.
+
 R1 Pro tasks follow Isaac Lab's normal CUDA/Fabric defaults. For a headless GPU smoke test, use performance rendering:
 
 ```bash
