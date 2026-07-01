@@ -22,6 +22,23 @@ ONE_LEG_USD_CACHE_DIR = Path("/tmp/assembly_benchmark/furniture_usd_cache/one_le
 
 ROT_Z_90 = (0.70710678, 0.0, 0.0, 0.70710678)
 SQUARE_TABLE_LEG_ROT = (0.5, 0.5, 0.5, -0.5)
+TABLE_LEG_SIZE = (0.045, 0.045, 0.725)
+TABLE_LEG_COLOR = (0.08, 0.08, 0.08)
+
+
+def _table_leg(prim_path: str, pos: tuple[float, float, float]) -> AssetBaseCfg:
+    return AssetBaseCfg(
+        prim_path=prim_path,
+        spawn=sim_utils.CuboidCfg(
+            size=TABLE_LEG_SIZE,
+            collision_props=sim_utils.CollisionPropertiesCfg(),
+            physics_material=sim_utils.RigidBodyMaterialCfg(
+                static_friction=0.8, dynamic_friction=0.8, restitution=0.6
+            ),
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=TABLE_LEG_COLOR),
+        ),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=pos),
+    )
 
 
 def _static_urdf(asset_path: Path, cache_name: str) -> sim_utils.UrdfFileCfg:
@@ -80,33 +97,46 @@ class OneLegSceneCfg(InteractiveSceneCfg):
             physics_material=sim_utils.RigidBodyMaterialCfg(
                 static_friction=0.8, dynamic_friction=0.8, restitution=0.6
             ),
-            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.13, 0.13, 0.12)),
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.03, 0.14, 0.11))
         ),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.4, 0.0, 1.0)),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.6, 0.0, 0.75)),
+    )
+
+    table_leg_front_left = _table_leg(
+        "{ENV_REGEX_NS}/TableLegFrontLeft", (0.3, 0.55, 0.3625)
+    )
+    table_leg_front_right = _table_leg(
+        "{ENV_REGEX_NS}/TableLegFrontRight", (0.9, 0.55, 0.3625)
+    )
+    table_leg_back_left = _table_leg(
+        "{ENV_REGEX_NS}/TableLegBackLeft", (0.3, -0.55, 0.3625)
+    )
+    table_leg_back_right = _table_leg(
+        "{ENV_REGEX_NS}/TableLegBackRight", (0.9, -0.55, 0.3625)
     )
 
     base_tag = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/BaseTag",
         spawn=_static_urdf(ONE_LEG_URDF_DIR / "base_tag.urdf", "base_tag"),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.3015, 0.0, 1.025)),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.5015, 0.0, 0.775)),
     )
 
     obstacle_front = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/ObstacleFront",
         spawn=_static_urdf(ONE_LEG_URDF_DIR / "obstacle_front.urdf", "obstacle_front"),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.6815, 0.0, 1.04), rot=ROT_Z_90),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.8815, 0.0, 0.79), rot=ROT_Z_90),
     )
 
     obstacle_right = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/ObstacleRight",
         spawn=_static_urdf(ONE_LEG_URDF_DIR / "obstacle_side.urdf", "obstacle_side"),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.6065, -0.175, 1.04), rot=ROT_Z_90),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.8065, -0.175, 0.79), rot=ROT_Z_90),
     )
 
     obstacle_left = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/ObstacleLeft",
         spawn=_static_urdf(ONE_LEG_URDF_DIR / "obstacle_side.urdf", "obstacle_side"),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.6065, 0.175, 1.04), rot=ROT_Z_90),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.8065, 0.175, 0.79), rot=ROT_Z_90),
     )
 
     square_table_top = RigidObjectCfg(
@@ -117,7 +147,7 @@ class OneLegSceneCfg(InteractiveSceneCfg):
             0.151,
         ),
         init_state=RigidObjectCfg.InitialStateCfg(
-            pos=(0.5415, 0.0, 1.040625),
+            pos=(0.7415, 0.0, 0.790625),
             rot=(0.5, 0.5, -0.5, -0.5),
         ),
     )
@@ -130,7 +160,7 @@ class OneLegSceneCfg(InteractiveSceneCfg):
             0.0231,
         ),
         init_state=RigidObjectCfg.InitialStateCfg(
-            pos=(0.3715, -0.2, 1.04), rot=SQUARE_TABLE_LEG_ROT
+            pos=(0.5715, -0.2, 0.79), rot=SQUARE_TABLE_LEG_ROT
         ),
     )
 
@@ -142,7 +172,7 @@ class OneLegSceneCfg(InteractiveSceneCfg):
             0.0231,
         ),
         init_state=RigidObjectCfg.InitialStateCfg(
-            pos=(0.3715, -0.12, 1.04), rot=SQUARE_TABLE_LEG_ROT
+            pos=(0.5715, -0.12, 0.79), rot=SQUARE_TABLE_LEG_ROT
         ),
     )
 
@@ -154,7 +184,7 @@ class OneLegSceneCfg(InteractiveSceneCfg):
             0.0231,
         ),
         init_state=RigidObjectCfg.InitialStateCfg(
-            pos=(0.3715, 0.12, 1.04), rot=SQUARE_TABLE_LEG_ROT
+            pos=(0.5715, 0.12, 0.79), rot=SQUARE_TABLE_LEG_ROT
         ),
     )
 
@@ -166,7 +196,7 @@ class OneLegSceneCfg(InteractiveSceneCfg):
             0.0231,
         ),
         init_state=RigidObjectCfg.InitialStateCfg(
-            pos=(0.3715, 0.2, 1.04), rot=SQUARE_TABLE_LEG_ROT
+            pos=(0.5715, 0.2, 0.79), rot=SQUARE_TABLE_LEG_ROT
         ),
     )
 
