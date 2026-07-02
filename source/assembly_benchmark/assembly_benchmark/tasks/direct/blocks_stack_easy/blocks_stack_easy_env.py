@@ -70,10 +70,7 @@ class BlocksStackEasyEnv(DirectRLEnv):
         self.joint_targets = self.robot.data.default_joint_pos[:, self.controlled_joint_ids].clone()
 
         block_half_size = 0.5 * float(self.cfg.scene.block1.spawn.size[2])
-        table_surface_z = (
-            float(self.cfg.scene.tabletop.init_state.pos[2])
-            + 0.5 * float(self.cfg.scene.tabletop.spawn.size[2])
-        )
+        table_surface_z = float(self.cfg.table_surface_z)
         block1_init_pos = torch.tensor(
             self.cfg.scene.block1.init_state.pos, dtype=torch.float32, device=self.device
         )

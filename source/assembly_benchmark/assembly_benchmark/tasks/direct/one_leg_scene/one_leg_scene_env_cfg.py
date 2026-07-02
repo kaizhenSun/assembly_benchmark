@@ -14,41 +14,23 @@ from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sim import SimulationCfg
 from isaaclab.utils import configclass
 
+from assembly_benchmark.assets.furniture.lab_table import LAB_TABLE_SURFACE_Z, make_lab_table_cfg
 from assembly_benchmark.robots.r1_pro import R1_PRO_CFG
 
 ONE_LEG_ASSET_DIR = Path(__file__).resolve().parents[3] / "assets" / "furniture" / "one_leg"
-ONE_LEG_URDF_DIR = ONE_LEG_ASSET_DIR / "urdf"
-ONE_LEG_USD_CACHE_DIR = Path("/tmp/assembly_benchmark/furniture_usd_cache/one_leg")
+ONE_LEG_USD_DIR = ONE_LEG_ASSET_DIR / "usd"
 
 ROT_Z_90 = (0.70710678, 0.0, 0.0, 0.70710678)
 SQUARE_TABLE_LEG_ROT = (0.5, 0.5, 0.5, -0.5)
-TABLE_LEG_SIZE = (0.045, 0.045, 0.725)
-TABLE_LEG_COLOR = (0.08, 0.08, 0.08)
 
 
-def _table_leg(prim_path: str, pos: tuple[float, float, float]) -> AssetBaseCfg:
-    return AssetBaseCfg(
-        prim_path=prim_path,
-        spawn=sim_utils.CuboidCfg(
-            size=TABLE_LEG_SIZE,
-            collision_props=sim_utils.CollisionPropertiesCfg(),
-            physics_material=sim_utils.RigidBodyMaterialCfg(
-                static_friction=0.8, dynamic_friction=0.8, restitution=0.6
-            ),
-            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=TABLE_LEG_COLOR),
-        ),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=pos),
-    )
+def _usd_path(asset_name: str) -> str:
+    return str(ONE_LEG_USD_DIR / asset_name / f"{asset_name}.usd")
 
 
-def _static_urdf(asset_path: Path, cache_name: str) -> sim_utils.UrdfFileCfg:
-    return sim_utils.UrdfFileCfg(
-        asset_path=str(asset_path),
-        usd_dir=str(ONE_LEG_USD_CACHE_DIR / cache_name),
-        fix_base=True,
-        make_instanceable=False,
-        joint_drive=None,
-        collision_from_visuals=False,
+def _static_usd(asset_name: str) -> sim_utils.UsdFileCfg:
+    return sim_utils.UsdFileCfg(
+        usd_path=_usd_path(asset_name),
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=True,
             max_depenetration_velocity=5.0,
@@ -56,14 +38,9 @@ def _static_urdf(asset_path: Path, cache_name: str) -> sim_utils.UrdfFileCfg:
     )
 
 
-def _dynamic_urdf(asset_path: Path, cache_name: str, mass: float) -> sim_utils.UrdfFileCfg:
-    return sim_utils.UrdfFileCfg(
-        asset_path=str(asset_path),
-        usd_dir=str(ONE_LEG_USD_CACHE_DIR / cache_name),
-        fix_base=False,
-        make_instanceable=False,
-        joint_drive=None,
-        collision_from_visuals=False,
+def _dynamic_usd(asset_name: str, mass: float) -> sim_utils.UsdFileCfg:
+    return sim_utils.UsdFileCfg(
+        usd_path=_usd_path(asset_name),
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
             max_depenetration_velocity=5.0,
@@ -89,60 +66,35 @@ class OneLegSceneCfg(InteractiveSceneCfg):
 
     robot = R1_PRO_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
-    tabletop = AssetBaseCfg(
-        prim_path="{ENV_REGEX_NS}/Tabletop",
-        spawn=sim_utils.CuboidCfg(
-            size=(0.7, 1.2, 0.05),
-            collision_props=sim_utils.CollisionPropertiesCfg(),
-            physics_material=sim_utils.RigidBodyMaterialCfg(
-                static_friction=0.8, dynamic_friction=0.8, restitution=0.6
-            ),
-            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.03, 0.14, 0.11))
-        ),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.6, 0.0, 0.75)),
-    )
-
-    table_leg_front_left = _table_leg(
-        "{ENV_REGEX_NS}/TableLegFrontLeft", (0.3, 0.55, 0.3625)
-    )
-    table_leg_front_right = _table_leg(
-        "{ENV_REGEX_NS}/TableLegFrontRight", (0.9, 0.55, 0.3625)
-    )
-    table_leg_back_left = _table_leg(
-        "{ENV_REGEX_NS}/TableLegBackLeft", (0.3, -0.55, 0.3625)
-    )
-    table_leg_back_right = _table_leg(
-        "{ENV_REGEX_NS}/TableLegBackRight", (0.9, -0.55, 0.3625)
-    )
+    lab_table = make_lab_table_cfg()
 
     base_tag = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/BaseTag",
-        spawn=_static_urdf(ONE_LEG_URDF_DIR / "base_tag.urdf", "base_tag"),
+        spawn=sim_utils.UsdFileCfg(usd_path=_usd_path("base_tag")),
         init_state=AssetBaseCfg.InitialStateCfg(pos=(0.5015, 0.0, 0.775)),
     )
 
     obstacle_front = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/ObstacleFront",
-        spawn=_static_urdf(ONE_LEG_URDF_DIR / "obstacle_front.urdf", "obstacle_front"),
+        spawn=_static_usd("obstacle_front"),
         init_state=AssetBaseCfg.InitialStateCfg(pos=(0.8815, 0.0, 0.79), rot=ROT_Z_90),
     )
 
     obstacle_right = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/ObstacleRight",
-        spawn=_static_urdf(ONE_LEG_URDF_DIR / "obstacle_side.urdf", "obstacle_side"),
+        spawn=_static_usd("obstacle_side"),
         init_state=AssetBaseCfg.InitialStateCfg(pos=(0.8065, -0.175, 0.79), rot=ROT_Z_90),
     )
 
     obstacle_left = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/ObstacleLeft",
-        spawn=_static_urdf(ONE_LEG_URDF_DIR / "obstacle_side.urdf", "obstacle_side"),
+        spawn=_static_usd("obstacle_side"),
         init_state=AssetBaseCfg.InitialStateCfg(pos=(0.8065, 0.175, 0.79), rot=ROT_Z_90),
     )
 
     square_table_top = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/SquareTableTop",
-        spawn=_dynamic_urdf(
-            ONE_LEG_URDF_DIR / "square_table" / "square_table_top.urdf",
+        spawn=_dynamic_usd(
             "square_table_top",
             0.151,
         ),
@@ -154,8 +106,7 @@ class OneLegSceneCfg(InteractiveSceneCfg):
 
     square_table_leg1 = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/SquareTableLeg1",
-        spawn=_dynamic_urdf(
-            ONE_LEG_URDF_DIR / "square_table" / "square_table_leg1.urdf",
+        spawn=_dynamic_usd(
             "square_table_leg1",
             0.0231,
         ),
@@ -166,8 +117,7 @@ class OneLegSceneCfg(InteractiveSceneCfg):
 
     square_table_leg2 = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/SquareTableLeg2",
-        spawn=_dynamic_urdf(
-            ONE_LEG_URDF_DIR / "square_table" / "square_table_leg2.urdf",
+        spawn=_dynamic_usd(
             "square_table_leg2",
             0.0231,
         ),
@@ -178,8 +128,7 @@ class OneLegSceneCfg(InteractiveSceneCfg):
 
     square_table_leg3 = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/SquareTableLeg3",
-        spawn=_dynamic_urdf(
-            ONE_LEG_URDF_DIR / "square_table" / "square_table_leg3.urdf",
+        spawn=_dynamic_usd(
             "square_table_leg3",
             0.0231,
         ),
@@ -190,8 +139,7 @@ class OneLegSceneCfg(InteractiveSceneCfg):
 
     square_table_leg4 = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/SquareTableLeg4",
-        spawn=_dynamic_urdf(
-            ONE_LEG_URDF_DIR / "square_table" / "square_table_leg4.urdf",
+        spawn=_dynamic_usd(
             "square_table_leg4",
             0.0231,
         ),
@@ -216,3 +164,4 @@ class OneLegSceneEnvCfg(DirectRLEnvCfg):
     scene: OneLegSceneCfg = OneLegSceneCfg(
         num_envs=16, env_spacing=4.0, replicate_physics=True
     )
+    table_surface_z = LAB_TABLE_SURFACE_Z

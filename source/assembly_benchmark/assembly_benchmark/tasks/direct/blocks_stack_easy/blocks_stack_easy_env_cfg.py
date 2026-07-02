@@ -12,6 +12,7 @@ from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sim import SimulationCfg
 from isaaclab.utils import configclass
 
+from assembly_benchmark.assets.furniture.lab_table import LAB_TABLE_SURFACE_Z, make_lab_table_cfg
 from assembly_benchmark.robots.r1_pro import (
     R1_PRO_CFG,
     R1_PRO_LEFT_ARM_JOINT_NAMES,
@@ -24,24 +25,6 @@ from assembly_benchmark.robots.r1_pro import (
     R1_PRO_RIGHT_IK_LINK_NAME,
     R1_PRO_TORSO_JOINT_NAMES,
 )
-
-TABLE_LEG_SIZE = (0.045, 0.045, 0.725)
-TABLE_LEG_COLOR = (0.08, 0.08, 0.08)
-
-
-def _table_leg(prim_path: str, pos: tuple[float, float, float]) -> AssetBaseCfg:
-    return AssetBaseCfg(
-        prim_path=prim_path,
-        spawn=sim_utils.CuboidCfg(
-            size=TABLE_LEG_SIZE,
-            collision_props=sim_utils.CollisionPropertiesCfg(),
-            physics_material=sim_utils.RigidBodyMaterialCfg(
-                static_friction=0.8, dynamic_friction=0.8, restitution=0.6
-            ),
-            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=TABLE_LEG_COLOR),
-        ),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=pos),
-    )
 
 
 @configclass
@@ -60,32 +43,8 @@ class BlocksStackEasySceneCfg(InteractiveSceneCfg):
     )
 
     robot = R1_PRO_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-    
-    tabletop = AssetBaseCfg(
-        prim_path="{ENV_REGEX_NS}/Tabletop",
-        spawn=sim_utils.CuboidCfg(
-            size=(0.7, 1.2, 0.05),
-            collision_props=sim_utils.CollisionPropertiesCfg(),
-            physics_material=sim_utils.RigidBodyMaterialCfg(
-                static_friction=0.8, dynamic_friction=0.8, restitution=0.6
-            ),
-            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.03, 0.14, 0.11)),
-        ),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.6, 0.0, 0.75)),
-    )
 
-    table_leg_front_left = _table_leg(
-        "{ENV_REGEX_NS}/TableLegFrontLeft", (0.3, 0.55, 0.3625)
-    )
-    table_leg_front_right = _table_leg(
-        "{ENV_REGEX_NS}/TableLegFrontRight", (0.9, 0.55, 0.3625)
-    )
-    table_leg_back_left = _table_leg(
-        "{ENV_REGEX_NS}/TableLegBackLeft", (0.3, -0.55, 0.3625)
-    )
-    table_leg_back_right = _table_leg(
-        "{ENV_REGEX_NS}/TableLegBackRight", (0.9, -0.55, 0.3625)
-    )
+    lab_table = make_lab_table_cfg()
 
     block1 = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/Block1",
@@ -137,6 +96,8 @@ class BlocksStackEasyEnvCfg(DirectRLEnvCfg):
     scene: BlocksStackEasySceneCfg = BlocksStackEasySceneCfg(
         num_envs=16, env_spacing=4.0, replicate_physics=True
     )
+
+    table_surface_z = LAB_TABLE_SURFACE_Z
 
     control_mode = "joint"
     torso_joint_names = R1_PRO_TORSO_JOINT_NAMES
