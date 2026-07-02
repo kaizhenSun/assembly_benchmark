@@ -28,14 +28,14 @@ from assembly_benchmark.tasks.direct.one_leg_scene.one_leg_scene_env_cfg import 
 class OneLegWholeBodyIKEnvCfg(DirectRLEnvCfg):
     """R1 Pro FurnitureBench one_leg assembly task with whole-body IK control."""
 
-    decimation = 2
+    decimation = 4
     episode_length_s = 50.0
 
     action_space = 16
     observation_space = 121
     state_space = 0
 
-    sim: SimulationCfg = SimulationCfg(dt=1 / 120, render_interval=decimation)
+    sim: SimulationCfg = SimulationCfg(dt=1 / 240, render_interval=decimation)
     scene: OneLegSceneCfg = OneLegSceneCfg(num_envs=16, env_spacing=4.0, replicate_physics=True)
 
     table_surface_z = LAB_TABLE_SURFACE_Z
