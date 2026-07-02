@@ -196,6 +196,7 @@ from isaaclab.utils.math import (
 from isaaclab_tasks.utils import parse_env_cfg
 
 import assembly_benchmark.tasks  # noqa: F401
+from assembly_benchmark.assets.furniture.lab_table import LAB_TABLE_SURFACE_Z
 
 
 OPEN_GRIPPER = 1.0
@@ -354,9 +355,7 @@ def _block_pose_env(unwrapped, block) -> torch.Tensor:
 
 
 def _table_surface_z(unwrapped) -> float:
-    table_pos_z = float(unwrapped.cfg.scene.tabletop.init_state.pos[2])
-    table_size_z = float(unwrapped.cfg.scene.tabletop.spawn.size[2])
-    return table_pos_z + 0.5 * table_size_z
+    return float(getattr(unwrapped.cfg, "table_surface_z", LAB_TABLE_SURFACE_Z))
 
 
 def _table_safe_finger_center_z(unwrapped, desired_z: torch.Tensor) -> torch.Tensor:

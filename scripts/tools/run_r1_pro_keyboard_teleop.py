@@ -54,7 +54,7 @@ parser.add_argument(
 parser.add_argument(
     "--enable_torso_keys",
     action="store_true",
-    help="Enable a P-toggled keyboard mode for direct torso joint angle control.",
+    help="Enable a P-toggled direct torso joint mode for tasks that are not already using torso IK.",
 )
 parser.add_argument(
     "--torso_step",
@@ -357,11 +357,19 @@ def main() -> int:
         num_envs=args_cli.num_envs,
         use_fabric=not args_cli.disable_fabric,
     )
+    task_has_torso_ik = bool(getattr(env_cfg, "include_torso_in_ik", False))
     if args_cli.include_torso_in_ik:
         if not hasattr(env_cfg, "torso_joint_names") or not hasattr(env_cfg, "include_torso_in_ik"):
             raise RuntimeError(f"Task '{args_cli.task}' does not expose R1 Pro torso IK configuration.")
-        env_cfg.include_torso_in_ik = True
-        env_cfg.observation_space += 2 * len(env_cfg.torso_joint_names)
+        if not task_has_torso_ik:
+            env_cfg.include_torso_in_ik = True
+            env_cfg.observation_space += 2 * len(env_cfg.torso_joint_names)
+    effective_torso_ik = bool(getattr(env_cfg, "include_torso_in_ik", False))
+    if args_cli.enable_torso_keys and effective_torso_ik:
+        raise RuntimeError(
+            "--enable_torso_keys cannot be used when the selected task already has torso IK enabled, "
+            "because both paths would write torso joint targets."
+        )
 
     env = gym.make(args_cli.task, cfg=env_cfg)
     unwrapped = env.unwrapped
@@ -405,7 +413,7 @@ def main() -> int:
         print(f"[INFO]: Gym action space: {env.action_space}")
         print(f"[INFO]: Task: {args_cli.task}")
         print(f"[INFO]: Position step: {args_cli.pos_step:.4f} m, rotation step: {args_cli.rot_step:.4f} rad")
-        print(f"[INFO]: Torso IK: enabled={args_cli.include_torso_in_ik}")
+        print(f"[INFO]: Torso IK: enabled={effective_torso_ik}")
         print(f"[INFO]: Torso keys: enabled={args_cli.enable_torso_keys}, step={args_cli.torso_step:.4f} rad")
         print(f"[INFO]: Control mode: {state.mode}")
         _print_bindings()
