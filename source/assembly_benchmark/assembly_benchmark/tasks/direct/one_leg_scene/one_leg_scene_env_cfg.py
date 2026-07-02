@@ -11,6 +11,7 @@ import isaaclab.sim as sim_utils
 from isaaclab.assets import AssetBaseCfg, RigidObjectCfg
 from isaaclab.envs import DirectRLEnvCfg
 from isaaclab.scene import InteractiveSceneCfg
+from isaaclab.sensors import CameraCfg
 from isaaclab.sim import SimulationCfg
 from isaaclab.utils import configclass
 
@@ -65,6 +66,26 @@ class OneLegSceneCfg(InteractiveSceneCfg):
     )
 
     robot = R1_PRO_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+    front_left_work_camera = CameraCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/base_link/front_left_work_camera",
+        update_period=0.0,
+        height=480,
+        width=640,
+        data_types=["rgb"],
+        spawn=sim_utils.PinholeCameraCfg(
+            focal_length=24.0,
+            focus_distance=400.0,
+            horizontal_aperture=20.955,
+            clipping_range=(0.1, 20.0),
+        ),
+        offset=CameraCfg.OffsetCfg(
+            pos=(2.5, 2.5, 2.5),
+            rot=(0.458631, 0.187409, 0.099606, -0.862910),
+            convention="world",
+        ),
+    )
+    """RGB work camera for scene-level monitoring; videos are recorded through Gym RecordVideo."""
 
     lab_table = make_lab_table_cfg()
 
@@ -153,14 +174,14 @@ class OneLegSceneCfg(InteractiveSceneCfg):
 class OneLegSceneEnvCfg(DirectRLEnvCfg):
     """Minimal task shell that only loads the FurnitureBench one_leg scene."""
 
-    decimation = 2
+    decimation = 4
     episode_length_s = 20.0
 
     action_space = 1
     observation_space = 1
     state_space = 0
 
-    sim: SimulationCfg = SimulationCfg(dt=1 / 120, render_interval=decimation)
+    sim: SimulationCfg = SimulationCfg(dt=1 / 240, render_interval=decimation)
     scene: OneLegSceneCfg = OneLegSceneCfg(
         num_envs=16, env_spacing=4.0, replicate_physics=True
     )
