@@ -6,7 +6,7 @@
 """Assembly specifications for assembly_benchmark tasks."""
 
 from .one_leg import OneLegAssemblySpec, make_one_leg_assembly
-from .registry import make_assembly
+from .registry import available_assemblies, make_assembly, register_assembly
 from .specs import AssemblyPartSpec, AssemblyRelationSpec, AssemblySpec, AssemblyTargetPose
 
 __all__ = [
@@ -15,6 +15,8 @@ __all__ = [
     "AssemblySpec",
     "AssemblyTargetPose",
     "OneLegAssemblySpec",
+    "available_assemblies",
     "make_assembly",
     "make_one_leg_assembly",
+    "register_assembly",
 ]

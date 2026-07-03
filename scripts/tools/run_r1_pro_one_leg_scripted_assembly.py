@@ -29,7 +29,7 @@ from collections.abc import Callable
 from isaaclab.app import AppLauncher
 
 
-TASK_NAME = "Assembly-Benchmark-Direct-v0"
+TASK_NAME = "Assembly-Benchmark-OneLeg-Direct-v0"
 DEFAULT_SCREW_ROTATION = -math.pi
 
 
@@ -748,7 +748,7 @@ def _make_markers() -> tuple[
 
 
 def _part_frame_poses_w(unwrapped) -> torch.Tensor:
-    assembly_parts = getattr(unwrapped, "assembly_observation_parts", None)
+    assembly_parts = getattr(unwrapped, "assembly_reset_parts", None)
     if assembly_parts is not None:
         part_poses = tuple(part.data.root_pose_w[0:1] for part in assembly_parts)
     else:

@@ -6,6 +6,7 @@ The extension registers these tasks:
 
 ```text
 Assembly-Benchmark-Direct-v0
+Assembly-Benchmark-OneLeg-Direct-v0
 ```
 
 ## Requirements
@@ -56,13 +57,25 @@ Run the generic R1 Pro assembly task:
 python scripts/zero_agent.py --task=Assembly-Benchmark-Direct-v0 --num_envs 1 --device cuda:0 --headless
 ```
 
-`Assembly-Benchmark-Direct-v0` is the single generic assembly environment. Its default assembly spec is `one_leg`, so it
-loads the R1 Pro, shared LabTable asset, base tag/obstacles, and five square-table parts. Assembly assets are described
-through `assembly_benchmark.assembly` part and assembly specs, so each part owns its USD/URDF paths, mass, reset pose,
-and scene key in one place. The task uses the existing R1 Pro bimanual Differential IK controller with torso
-participation enabled and keeps the sparse one_leg success condition: the square-table top and leg4 are assembled when
-their relative pose matches one of the four valid table-corner targets. It does not include the FurnitureBench scripted
-FSM, AprilTag perception, camera observations, or data collection pipeline.
+Run the explicit one_leg scene entry:
+
+```bash
+python scripts/zero_agent.py --task=Assembly-Benchmark-OneLeg-Direct-v0 --num_envs 1 --device cuda:0 --headless
+```
+
+`Assembly-Benchmark-Direct-v0` is the default alias for the generic assembly environment. It currently points to the
+`one_leg` assembly scene, while `Assembly-Benchmark-OneLeg-Direct-v0` is the explicit one_leg task id. Assembly assets
+are described through `assembly_benchmark.assembly` part and assembly specs, so each part owns its USD/URDF paths, mass,
+reset pose, and scene key in one place. The shared `AssemblyBenchmarkEnv` uses generated Isaac Lab scene/env cfg classes
+for each registered assembly. The one_leg variant loads the R1 Pro, shared LabTable asset, base tag/obstacles, and five
+square-table parts. It uses the existing R1 Pro bimanual Differential IK controller with torso participation enabled and
+keeps the sparse one_leg success condition: the square-table top and leg4 are assembled when their relative pose matches
+one of the four valid table-corner targets. It does not include the FurnitureBench scripted FSM, AprilTag perception,
+camera observations, or data collection pipeline.
+
+Assembly parts default to `observe=False`, so the one_leg policy observation contains robot joint state, end-effector
+poses, and target assembly poses, but not per-part root poses. Opt in on a specific part spec only when that part pose
+should be exposed to the policy.
 
 The object support table is stored once as `assets/furniture/lab_table/lab_table.usd` and used by the generic assembly
 task. It contains the tabletop and four static collision legs with the same geometry, material, and friction settings
@@ -129,6 +142,20 @@ The teleop script requires a GUI window. Use `W/S`, `A/D`, and `Q/E` to translat
 `W/S`, `A/D`, `Q/E`, and `Z/X` adjust `torso_joint1-4`. Direct torso keys are only for tasks that are not already using
 torso IK. It sends the existing bimanual IK action format and uses normal gripper-object contact for object
 interaction. `--print_joint_angles` follows `--print_interval` and prints env0 joint positions in radians.
+
+## Adding Assembly Scenes
+
+Assembly scenes are registered from Python specs:
+
+1. Add a spec module that returns an `AssemblySpec` with unique part `scene_key` values, source URDF/USD paths, reset
+   poses, and at least one assembly relation. Parts default to `observe=False`; opt in only for poses that should enter
+   policy observations.
+2. Register it through `assembly_benchmark.assembly.register_assembly(name, factory)`.
+3. Generate USD assets with `scripts/tools/generate_assembly_usd_assets.py --assembly <name> --overwrite`.
+4. Run the generated Isaac Lab task id `Assembly-Benchmark-<Name>-Direct-v0`.
+
+The default task alias remains `Assembly-Benchmark-Direct-v0`; per-scene task ids make training runs and `list_envs.py`
+output explicit.
 
 The R1 Pro assembly task follows Isaac Lab's normal CUDA/Fabric defaults. For a headless GPU check, use performance
 rendering:

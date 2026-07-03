@@ -100,7 +100,7 @@ class AssemblyBenchmarkEnv(DirectRLEnv):
     def _setup_scene(self) -> None:
         self.robot = self.scene["robot"]
         self.assembly_parts_by_name = {
-            name: self.scene[name] for name in self.cfg.assembly_reset_part_names
+            name: self.scene[name] for name in self.cfg.assembly_part_names
         }
         self.assembly_reset_parts = tuple(
             self.assembly_parts_by_name[name]

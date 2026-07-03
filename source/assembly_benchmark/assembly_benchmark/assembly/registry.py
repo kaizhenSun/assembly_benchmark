@@ -18,13 +18,38 @@ _ASSEMBLY_FACTORIES: dict[str, Callable[[], AssemblySpec]] = {
 }
 
 
+def available_assemblies() -> tuple[str, ...]:
+    """Return registered assembly names in deterministic order."""
+    return tuple(sorted(_ASSEMBLY_FACTORIES))
+
+
+def register_assembly(name: str, factory: Callable[[], AssemblySpec]) -> None:
+    """Register an assembly specification factory for scene/task generation."""
+    if name in _ASSEMBLY_FACTORIES:
+        raise ValueError(f"Assembly '{name}' is already registered.")
+
+    assembly = factory()
+    if assembly.name != name:
+        raise ValueError(
+            f"Assembly factory registered as '{name}' returned spec named '{assembly.name}'."
+        )
+
+    _ASSEMBLY_FACTORIES[name] = factory
+
+
 def make_assembly(name: str) -> AssemblySpec:
     """Create an assembly specification by name."""
     try:
         return _ASSEMBLY_FACTORIES[name]()
     except KeyError as exc:
-        available = ", ".join(sorted(_ASSEMBLY_FACTORIES))
+        available = ", ".join(available_assemblies())
         raise KeyError(f"Unknown assembly '{name}'. Available assemblies: {available}") from exc
 
 
-__all__ = ["OneLegAssemblySpec", "make_assembly", "make_one_leg_assembly"]
+__all__ = [
+    "OneLegAssemblySpec",
+    "available_assemblies",
+    "make_assembly",
+    "make_one_leg_assembly",
+    "register_assembly",
+]

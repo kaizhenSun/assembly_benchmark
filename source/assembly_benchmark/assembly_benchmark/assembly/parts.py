@@ -78,7 +78,7 @@ class SquareTableTopPart(AssemblyPartSpec):
         object.__setattr__(self, "init_rot", (0.5, 0.5, -0.5, -0.5))
         object.__setattr__(self, "body_type", "dynamic")
         object.__setattr__(self, "mass", 0.151)
-        object.__setattr__(self, "observe", True)
+        object.__setattr__(self, "observe", False)
         object.__setattr__(self, "reset", True)
         object.__setattr__(self, "tag_ids", (4, 5, 6, 7))
         object.__setattr__(self, "reset_footprint_xy", (0.1625, 0.1625))
@@ -110,7 +110,7 @@ class SquareTableLegPart(AssemblyPartSpec):
         object.__setattr__(self, "init_rot", init_rot)
         object.__setattr__(self, "body_type", "dynamic")
         object.__setattr__(self, "mass", 0.0231)
-        object.__setattr__(self, "observe", True)
+        object.__setattr__(self, "observe", False)
         object.__setattr__(self, "reset", True)
         tag_start = 8 + (index - 1) * 4
         object.__setattr__(self, "tag_ids", tuple(range(tag_start, tag_start + 4)))
