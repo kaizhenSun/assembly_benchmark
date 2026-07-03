@@ -6,8 +6,7 @@
 """Keyboard teleoperation for the Galaxea R1 Pro bimanual IK task.
 
 This script drives the existing 16D R1 Pro IK action interface with keyboard
-delta commands. It defaults to the BlocksStackEasy scene so the grippers can
-interact with the tabletop blocks through normal physics contact.
+delta commands. It defaults to the generic assembly benchmark task.
 
 .. code-block:: bash
 
@@ -22,14 +21,19 @@ import argparse
 from isaaclab.app import AppLauncher
 
 
-DEFAULT_TASK_NAME = "Assembly-R1Pro-BlocksStackEasy-IK-Direct-v0"
+DEFAULT_TASK_NAME = "Assembly-Benchmark-Direct-v0"
 OPEN_GRIPPER = 1.0
 CLOSE_GRIPPER = -1.0
 CONTROL_MODES = ("left", "right", "both")
 
 
 parser = argparse.ArgumentParser(description="Run keyboard teleoperation for R1 Pro bimanual IK.")
-parser.add_argument("--task", type=str, default=DEFAULT_TASK_NAME, help="IK task to teleoperate.")
+parser.add_argument(
+    "--task",
+    type=str,
+    default=DEFAULT_TASK_NAME,
+    help="IK task to teleoperate. Defaults to Assembly-Benchmark-Direct-v0.",
+)
 parser.add_argument("--num_envs", type=int, default=1, help="Number of environments. Only 1 is supported.")
 parser.add_argument(
     "--disable_fabric",
@@ -170,7 +174,12 @@ def _grip_label(value: float) -> str:
     return "open" if value == OPEN_GRIPPER else "closed"
 
 
-def _make_action(left_pose: torch.Tensor, left_grip: float, right_pose: torch.Tensor, right_grip: float) -> torch.Tensor:
+def _make_action(
+    left_pose: torch.Tensor,
+    left_grip: float,
+    right_pose: torch.Tensor,
+    right_grip: float,
+) -> torch.Tensor:
     actions = torch.zeros((1, 16), dtype=torch.float32, device=left_pose.device)
     actions[:, 0:7] = left_pose
     actions[:, 7] = left_grip

@@ -3,9 +3,9 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Generate checked-in USD assets for the FurnitureBench one_leg scene.
+"""Generate checked-in USD assets for assembly specs.
 
-This is an offline asset preparation tool. Runtime one_leg tasks load the
+This is an offline asset preparation tool. Runtime assembly tasks load the
 generated USD files directly and do not invoke the URDF importer.
 """
 
@@ -18,36 +18,23 @@ from pathlib import Path
 from isaaclab.app import AppLauncher
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-ONE_LEG_ASSET_DIR = REPO_ROOT / "source" / "assembly_benchmark" / "assembly_benchmark" / "assets" / "furniture" / "one_leg"
-ONE_LEG_URDF_DIR = ONE_LEG_ASSET_DIR / "urdf"
-DEFAULT_OUTPUT_DIR = ONE_LEG_ASSET_DIR / "usd"
-
 SDF_RESOLUTION = 512
 SDF_SUBGRID_RESOLUTION = 8
 SDF_MARGIN = 0.001
 SDF_NARROW_BAND_THICKNESS = 0.01
 
-STATIC_ASSETS = {
-    "base_tag": ONE_LEG_URDF_DIR / "base_tag.urdf",
-    "obstacle_front": ONE_LEG_URDF_DIR / "obstacle_front.urdf",
-    "obstacle_side": ONE_LEG_URDF_DIR / "obstacle_side.urdf",
-}
-DYNAMIC_ASSETS = {
-    "square_table_top": (ONE_LEG_URDF_DIR / "square_table" / "square_table_top.urdf", 0.151),
-    "square_table_leg1": (ONE_LEG_URDF_DIR / "square_table" / "square_table_leg1.urdf", 0.0231),
-    "square_table_leg2": (ONE_LEG_URDF_DIR / "square_table" / "square_table_leg2.urdf", 0.0231),
-    "square_table_leg3": (ONE_LEG_URDF_DIR / "square_table" / "square_table_leg3.urdf", 0.0231),
-    "square_table_leg4": (ONE_LEG_URDF_DIR / "square_table" / "square_table_leg4.urdf", 0.0231),
-}
-
-
-parser = argparse.ArgumentParser(description="Generate one_leg USD assets from source URDF files.")
+parser = argparse.ArgumentParser(description="Generate USD assets from an assembly spec.")
+parser.add_argument(
+    "--assembly",
+    type=str,
+    default="one_leg",
+    help="Assembly spec name to generate. Defaults to one_leg.",
+)
 parser.add_argument(
     "--output_dir",
     type=Path,
-    default=DEFAULT_OUTPUT_DIR,
-    help="Directory where generated asset folders are written.",
+    default=None,
+    help="Directory where generated asset folders are written. Defaults to the assembly asset_root/usd directory.",
 )
 parser.add_argument(
     "--overwrite",
@@ -62,6 +49,8 @@ app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
 import isaaclab.sim as sim_utils
+
+from assembly_benchmark.assembly import make_assembly
 
 
 def _ensure_urdf_colliders_are_composed(usd_path: str) -> None:
@@ -135,7 +124,9 @@ def _prepare_output_dir(asset_dir: Path, overwrite: bool) -> None:
     asset_dir.mkdir(parents=True)
 
 
-def _generate_static_asset(asset_name: str, urdf_path: Path, output_dir: Path, overwrite: bool) -> None:
+def _generate_static_asset(
+    assembly_name: str, asset_name: str, urdf_path: Path, output_dir: Path, overwrite: bool
+) -> None:
     asset_dir = output_dir / asset_name
     _prepare_output_dir(asset_dir, overwrite)
     cfg = sim_utils.UrdfFileCfg(
@@ -153,10 +144,17 @@ def _generate_static_asset(asset_name: str, urdf_path: Path, output_dir: Path, o
     converter = sim_utils.UrdfConverter(cfg)
     _ensure_urdf_colliders_are_composed(converter.usd_path)
     _strip_converter_metadata(asset_dir)
-    print(f"[INFO] Generated static one_leg USD: {converter.usd_path}")
+    print(f"[INFO] Generated static {assembly_name} USD: {converter.usd_path}")
 
 
-def _generate_dynamic_asset(asset_name: str, urdf_path: Path, mass: float, output_dir: Path, overwrite: bool) -> None:
+def _generate_dynamic_asset(
+    assembly_name: str,
+    asset_name: str,
+    urdf_path: Path,
+    mass: float,
+    output_dir: Path,
+    overwrite: bool,
+) -> None:
     asset_dir = output_dir / asset_name
     _prepare_output_dir(asset_dir, overwrite)
     cfg = sim_utils.UrdfFileCfg(
@@ -175,17 +173,37 @@ def _generate_dynamic_asset(asset_name: str, urdf_path: Path, mass: float, outpu
     converter = sim_utils.UrdfConverter(cfg)
     _convert_composed_colliders_to_sdf(converter.usd_path)
     _strip_converter_metadata(asset_dir)
-    print(f"[INFO] Generated dynamic SDF one_leg USD: {converter.usd_path}")
+    print(f"[INFO] Generated dynamic SDF {assembly_name} USD: {converter.usd_path}")
 
 
 def main() -> None:
-    output_dir = args_cli.output_dir.expanduser().resolve()
+    assembly = make_assembly(args_cli.assembly)
+    output_dir = args_cli.output_dir
+    if output_dir is None:
+        output_dir = assembly.asset_root / "usd"
+    output_dir = output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    for asset_name, urdf_path in STATIC_ASSETS.items():
-        _generate_static_asset(asset_name, urdf_path, output_dir, args_cli.overwrite)
-    for asset_name, (urdf_path, mass) in DYNAMIC_ASSETS.items():
-        _generate_dynamic_asset(asset_name, urdf_path, mass, output_dir, args_cli.overwrite)
+    for asset in assembly.usd_generation_assets():
+        if asset.is_dynamic:
+            if asset.mass is None:
+                raise ValueError(f"Dynamic asset '{asset.asset_name}' is missing mass.")
+            _generate_dynamic_asset(
+                assembly.name,
+                asset.asset_name,
+                asset.urdf_path,
+                asset.mass,
+                output_dir,
+                args_cli.overwrite,
+            )
+        else:
+            _generate_static_asset(
+                assembly.name,
+                asset.asset_name,
+                asset.urdf_path,
+                output_dir,
+                args_cli.overwrite,
+            )
 
 
 try:
