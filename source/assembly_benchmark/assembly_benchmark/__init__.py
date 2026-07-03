@@ -5,11 +5,13 @@
 
 """Assembly Benchmark Isaac Lab extension."""
 
+_OPTIONAL_TASK_IMPORT_DEPS = {"isaaclab", "isaaclab_tasks", "pxr"}
+
 # Register Gym environments.
 try:
     from .tasks import *
 except ModuleNotFoundError as exc:
-    if exc.name != "isaaclab_tasks":
+    if exc.name not in _OPTIONAL_TASK_IMPORT_DEPS:
         raise
 
 # Register UI extensions.

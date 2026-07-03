@@ -29,7 +29,7 @@ class AssemblyPartSpec:
     init_rot: Quat
     body_type: PartBodyType
     mass: float | None = None
-    observe: bool = True
+    observe: bool = False
     reset: bool = True
     tag_ids: tuple[int, ...] = ()
     reset_footprint_xy: tuple[float, float] | None = None
@@ -91,6 +91,41 @@ class AssemblySpec:
     asset_root: Path
     parts: tuple[AssemblyPartSpec, ...]
     assembly_relations: tuple[AssemblyRelationSpec, ...]
+
+    def __post_init__(self) -> None:
+        """Validate the assembly contract used by Isaac Lab scene generation."""
+        part_names = [part.scene_key for part in self.parts]
+        duplicate_part_names = sorted({name for name in part_names if part_names.count(name) > 1})
+        if duplicate_part_names:
+            duplicates = ", ".join(duplicate_part_names)
+            raise ValueError(f"Assembly '{self.name}' has duplicate part scene keys: {duplicates}.")
+
+        invalid_scene_keys = [name for name in part_names if not name.isidentifier()]
+        if invalid_scene_keys:
+            invalid = ", ".join(invalid_scene_keys)
+            raise ValueError(
+                f"Assembly '{self.name}' has part scene keys that are not valid Python identifiers: {invalid}."
+            )
+
+        part_name_set = set(part_names)
+        for relation in self.assembly_relations:
+            if relation.parent not in part_name_set:
+                raise ValueError(
+                    f"Assembly '{self.name}' relation parent '{relation.parent}' is not a declared part."
+                )
+            if relation.child not in part_name_set:
+                raise ValueError(
+                    f"Assembly '{self.name}' relation child '{relation.child}' is not a declared part."
+                )
+            if not relation.target_poses:
+                raise ValueError(
+                    f"Assembly '{self.name}' relation '{relation.parent}->{relation.child}' has no target poses."
+                )
+            if not 0 <= relation.default_target_index < len(relation.target_poses):
+                raise ValueError(
+                    f"Assembly '{self.name}' relation '{relation.parent}->{relation.child}' has default target "
+                    f"index {relation.default_target_index}, but only {len(relation.target_poses)} targets."
+                )
 
     @property
     def part_names(self) -> tuple[str, ...]:
