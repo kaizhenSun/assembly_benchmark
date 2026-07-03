@@ -29,7 +29,7 @@ from collections.abc import Callable
 from isaaclab.app import AppLauncher
 
 
-TASK_NAME = "Assembly-R1Pro-OneLeg-WholeBodyIK-Direct-v0"
+TASK_NAME = "Assembly-Benchmark-Direct-v0"
 DEFAULT_SCREW_ROTATION = -math.pi
 
 
@@ -484,7 +484,8 @@ class CameraVideoRecorder:
             frame = frame[0]
         if frame.ndim != 3 or frame.shape[-1] < 3:
             raise RuntimeError(
-                f"Expected camera '{self.camera_name}' rgb output with shape HxWx3 or NxHxWx3, got {tuple(frame.shape)}."
+                f"Expected camera '{self.camera_name}' rgb output with shape HxWx3 "
+                f"or NxHxWx3, got {tuple(frame.shape)}."
             )
 
         frame = frame[..., :3].detach()
@@ -622,6 +623,29 @@ def _env_ids(unwrapped) -> torch.Tensor:
     return torch.tensor([0], dtype=torch.long, device=unwrapped.device)
 
 
+def _assembly_parent_part(unwrapped):
+    part = getattr(unwrapped, "assembly_parent_part", None)
+    if part is not None:
+        return part
+    return unwrapped.square_table_top
+
+
+def _assembly_child_part(unwrapped):
+    part = getattr(unwrapped, "assembly_child_part", None)
+    if part is not None:
+        return part
+    return unwrapped.square_table_leg4
+
+
+def _scripted_target_pose_top(unwrapped) -> torch.Tensor:
+    target_pose = getattr(unwrapped, "scripted_target_pose", None)
+    if target_pose is not None:
+        return target_pose.to(device=unwrapped.device, dtype=torch.float32)
+    target_pos = torch.tensor((LEG4_TARGET_POS_TOP,), dtype=torch.float32, device=unwrapped.device)
+    target_quat = torch.tensor((IDENTITY_QUAT,), dtype=torch.float32, device=unwrapped.device)
+    return torch.cat((target_pos, target_quat), dim=-1)
+
+
 def _world_pose_to_env_pose(unwrapped, pose_w: torch.Tensor) -> torch.Tensor:
     env_pose = pose_w.clone()
     env_pose[:, :3] -= unwrapped.scene.env_origins[_env_ids(unwrapped)]
@@ -629,7 +653,7 @@ def _world_pose_to_env_pose(unwrapped, pose_w: torch.Tensor) -> torch.Tensor:
 
 
 def _leg_pose_env(unwrapped) -> torch.Tensor:
-    return unwrapped._object_pose_in_env_frame(unwrapped.square_table_leg4)[0:1]
+    return unwrapped._object_pose_in_env_frame(_assembly_child_part(unwrapped))[0:1]
 
 
 def _active_ee_pose(unwrapped, active_arm: str) -> torch.Tensor:
@@ -724,13 +748,17 @@ def _make_markers() -> tuple[
 
 
 def _part_frame_poses_w(unwrapped) -> torch.Tensor:
-    part_poses = (
-        unwrapped.square_table_top.data.root_pose_w[0:1],
-        unwrapped.square_table_leg1.data.root_pose_w[0:1],
-        unwrapped.square_table_leg2.data.root_pose_w[0:1],
-        unwrapped.square_table_leg3.data.root_pose_w[0:1],
-        unwrapped.square_table_leg4.data.root_pose_w[0:1],
-    )
+    assembly_parts = getattr(unwrapped, "assembly_observation_parts", None)
+    if assembly_parts is not None:
+        part_poses = tuple(part.data.root_pose_w[0:1] for part in assembly_parts)
+    else:
+        part_poses = (
+            unwrapped.square_table_top.data.root_pose_w[0:1],
+            unwrapped.square_table_leg1.data.root_pose_w[0:1],
+            unwrapped.square_table_leg2.data.root_pose_w[0:1],
+            unwrapped.square_table_leg3.data.root_pose_w[0:1],
+            unwrapped.square_table_leg4.data.root_pose_w[0:1],
+        )
     return torch.cat(part_poses, dim=0)
 
 
@@ -906,9 +934,10 @@ def _grasp_quat(unwrapped, active_pose: torch.Tensor, final_leg_pose_env: torch.
 
 
 def _final_leg_pose_env(unwrapped) -> torch.Tensor:
-    top_pose_w = unwrapped.square_table_top.data.root_pose_w[0:1]
-    target_pos_top = torch.tensor((LEG4_TARGET_POS_TOP,), dtype=torch.float32, device=unwrapped.device)
-    target_quat_top = torch.tensor((IDENTITY_QUAT,), dtype=torch.float32, device=unwrapped.device)
+    top_pose_w = _assembly_parent_part(unwrapped).data.root_pose_w[0:1]
+    target_pose_top = _scripted_target_pose_top(unwrapped)
+    target_pos_top = target_pose_top[:, :3]
+    target_quat_top = target_pose_top[:, 3:7]
     target_pos_w, target_quat_w = combine_frame_transforms(
         top_pose_w[:, :3],
         top_pose_w[:, 3:7],
@@ -933,7 +962,7 @@ def _format_vec(vec: torch.Tensor) -> str:
 
 def _final_relative_pose_diagnostics(unwrapped) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     rel_pos, rel_quat = unwrapped._assembled_relative_pose()
-    target_pos = torch.tensor((LEG4_TARGET_POS_TOP,), dtype=torch.float32, device=unwrapped.device)
+    target_pos = _scripted_target_pose_top(unwrapped)[:, :3]
     pos_error = rel_pos - target_pos
     return rel_pos, rel_quat, pos_error
 
@@ -965,8 +994,8 @@ def _run_phase(
     start_left_grip = left_grip
     start_right_grip = right_grip
     phase_steps = args_cli.phase_steps if steps is None else steps
-    lift_guard_top_z = float(unwrapped.square_table_top.data.root_pose_w[0, 2].item()) if lift_guard else 0.0
-    lift_guard_leg_z = float(unwrapped.square_table_leg4.data.root_pose_w[0, 2].item()) if lift_guard else 0.0
+    lift_guard_top_z = float(_assembly_parent_part(unwrapped).data.root_pose_w[0, 2].item()) if lift_guard else 0.0
+    lift_guard_leg_z = float(_assembly_child_part(unwrapped).data.root_pose_w[0, 2].item()) if lift_guard else 0.0
 
     for step_idx in range(phase_steps):
         if not simulation_app.is_running():
@@ -991,8 +1020,8 @@ def _run_phase(
         top_lift_delta = 0.0
         leg_lift_delta = 0.0
         if lift_guard:
-            top_lift_delta = float(unwrapped.square_table_top.data.root_pose_w[0, 2].item()) - lift_guard_top_z
-            leg_lift_delta = float(unwrapped.square_table_leg4.data.root_pose_w[0, 2].item()) - lift_guard_leg_z
+            top_lift_delta = float(_assembly_parent_part(unwrapped).data.root_pose_w[0, 2].item()) - lift_guard_top_z
+            leg_lift_delta = float(_assembly_child_part(unwrapped).data.root_pose_w[0, 2].item()) - lift_guard_leg_z
 
         if args_cli.print_interval > 0 and global_step % args_cli.print_interval == 0:
             ee_pose = _active_ee_pose(unwrapped, active_arm)

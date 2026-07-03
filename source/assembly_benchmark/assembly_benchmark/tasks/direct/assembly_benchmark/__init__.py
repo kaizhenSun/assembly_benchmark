@@ -1,15 +1,13 @@
-# Copyright (c) 2022-2025, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers.
 # All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+"""Generic R1 Pro assembly benchmark task."""
+
 import gymnasium as gym
 
 from . import agents
-
-##
-# Register Gym environments.
-##
 
 
 gym.register(
