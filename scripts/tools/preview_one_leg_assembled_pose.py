@@ -13,6 +13,7 @@ frames form a valid assembled table.
 .. code-block:: bash
 
     python scripts/tools/preview_one_leg_assembled_pose.py --num_envs 1 --device cuda:0
+    python scripts/tools/preview_one_leg_assembled_pose.py --num_envs 1 --device cuda:0 --physics_mode dynamic
 
 """
 
@@ -48,6 +49,12 @@ parser.add_argument(
     help="Preview all four table legs, or only the relation child at --target_index.",
 )
 parser.add_argument("--target_index", type=int, default=0, help="Target index used by relation_child mode.")
+parser.add_argument(
+    "--physics_mode",
+    choices=("ghost", "dynamic"),
+    default="ghost",
+    help="Use collision-free kinematic assembly parts for visual preview, or keep dynamic physics.",
+)
 parser.add_argument("--settle_steps", type=int, default=30, help="Steps to refresh the assembled preview initially.")
 parser.add_argument("--marker_scale", type=float, default=0.08, help="Scale of top/target frame markers.")
 parser.add_argument("--disable_markers", action="store_true", help="Disable top and target frame markers.")
@@ -70,6 +77,7 @@ simulation_app = app_launcher.app
 import gymnasium as gym
 import torch
 
+import isaaclab.sim as sim_utils
 import isaaclab_tasks  # noqa: F401
 from isaaclab.markers import VisualizationMarkers
 from isaaclab.markers.config import FRAME_MARKER_CFG
@@ -77,6 +85,42 @@ from isaaclab.utils.math import combine_frame_transforms, subtract_frame_transfo
 from isaaclab_tasks.utils import parse_env_cfg
 
 import assembly_benchmark.tasks  # noqa: F401
+
+
+def _configure_preview_physics(env_cfg) -> tuple[str, ...]:
+    """Configure assembly parts for this preview run."""
+    if args_cli.physics_mode == "dynamic":
+        return ()
+
+    part_names = tuple(env_cfg.assembly_reset_part_names)
+    for part_name in part_names:
+        if not hasattr(env_cfg.scene, part_name):
+            raise RuntimeError(f"Preview physics could not find scene part '{part_name}' in env cfg.")
+
+        part_cfg = getattr(env_cfg.scene, part_name)
+        spawn_cfg = getattr(part_cfg, "spawn", None)
+        if spawn_cfg is None:
+            raise RuntimeError(f"Preview physics could not find spawn cfg for scene part '{part_name}'.")
+
+        spawn_cfg.collision_props = sim_utils.CollisionPropertiesCfg(collision_enabled=False)
+        if spawn_cfg.rigid_props is None:
+            spawn_cfg.rigid_props = sim_utils.RigidBodyPropertiesCfg()
+        spawn_cfg.rigid_props.disable_gravity = True
+        spawn_cfg.rigid_props.kinematic_enabled = True
+
+    return part_names
+
+
+def _print_physics_mode(ghost_part_names: tuple[str, ...]) -> None:
+    print(f"[INFO]: Preview physics mode: {args_cli.physics_mode}", flush=True)
+    if args_cli.physics_mode == "ghost":
+        print(
+            "[INFO]: Ghost mode is visual/test-only: collisions are disabled for assembly reset parts.",
+            flush=True,
+        )
+        print(f"[INFO]: Ghosted assembly parts: {', '.join(ghost_part_names)}", flush=True)
+    else:
+        print("[INFO]: Dynamic mode keeps assembly collisions and rigid-body physics enabled.", flush=True)
 
 
 def _make_markers() -> tuple[VisualizationMarkers, VisualizationMarkers]:
@@ -208,6 +252,9 @@ def main() -> int:
         num_envs=args_cli.num_envs,
         use_fabric=not args_cli.disable_fabric,
     )
+    ghost_part_names = _configure_preview_physics(env_cfg)
+    _print_physics_mode(ghost_part_names)
+
     env = gym.make(args_cli.task, cfg=env_cfg)
     unwrapped = env.unwrapped
 

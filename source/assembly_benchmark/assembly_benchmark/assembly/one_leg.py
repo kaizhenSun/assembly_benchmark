@@ -7,14 +7,91 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from .specs import (
+    AssemblyPartSpec,
+    AssemblyRelationSpec,
+    AssemblySpec,
+    Quat,
+    Vec3,
+    assembly_asset_root,
+    make_base_tag_part,
+    make_dynamic_part,
+    make_relation,
+)
 
-from .parts import BaseTagPart, ObstaclePart, SquareTableLegPart, SquareTableTopPart
-from .specs import AssemblyRelationSpec, AssemblySpec, AssemblyTargetPose
+
+ASSEMBLY_NAME = "one_leg"
+ASSET_ROOT = assembly_asset_root(ASSEMBLY_NAME)
+ONE_LEG_ASSET_ROOT = ASSET_ROOT
+
+SQUARE_TABLE_TOP_ROT: Quat = (0.5, 0.5, -0.5, -0.5)
+SQUARE_TABLE_LEG_ROT: Quat = (0.5, 0.5, 0.5, -0.5)
+
+BASE_TAG_POS: Vec3 = (0.5015, 0.0, 0.775)
+TABLE_TOP_INIT_POS: Vec3 = (0.7415, 0.0, 0.790625)
+LEG_INIT_POSITIONS: tuple[Vec3, ...] = (
+    (0.5715, -0.2, 0.79),
+    (0.5715, -0.12, 0.79),
+    (0.5715, 0.12, 0.79),
+    (0.5715, 0.2, 0.79),
+)
+
+TABLE_LEG_TARGET_POSITIONS: tuple[Vec3, ...] = (
+    (-0.05625, 0.046875, -0.05625),
+    (0.05625, 0.046875, -0.05625),
+    (-0.05625, 0.046875, 0.05625),
+    (0.05625, 0.046875, 0.05625),
+)
 
 
-ONE_LEG_ASSET_ROOT = Path(__file__).resolve().parents[1] / "assets" / "furniture" / "one_leg"
-ROT_Z_90 = (0.70710678, 0.0, 0.0, 0.70710678)
+def make_square_table_top_part() -> AssemblyPartSpec:
+    """Create the square table top."""
+    return make_dynamic_part(
+        scene_key="square_table_top",
+        asset_name="square_table_top",
+        prim_name="SquareTableTop",
+        urdf_rel_path="urdf/square_table/square_table_top.urdf",
+        init_pos=TABLE_TOP_INIT_POS,
+        init_rot=SQUARE_TABLE_TOP_ROT,
+        mass=0.151,
+        tag_ids=(4, 5, 6, 7),
+        reset_footprint_xy=(0.1625, 0.1625),
+    )
+
+
+def make_square_table_leg_part(index: int, init_pos: Vec3) -> AssemblyPartSpec:
+    """Create one square table leg."""
+    scene_key = f"square_table_leg{index}"
+    tag_start = 8 + (index - 1) * 4
+    return make_dynamic_part(
+        scene_key=scene_key,
+        asset_name=scene_key,
+        prim_name=f"SquareTableLeg{index}",
+        urdf_rel_path=f"urdf/square_table/{scene_key}.urdf",
+        init_pos=init_pos,
+        init_rot=SQUARE_TABLE_LEG_ROT,
+        mass=0.0231,
+        tag_ids=tuple(range(tag_start, tag_start + 4)),
+        reset_footprint_xy=(0.05, 0.0875),
+    )
+
+
+PARTS: tuple[AssemblyPartSpec, ...] = (
+    make_base_tag_part(init_pos=BASE_TAG_POS),
+    make_square_table_top_part(),
+    *(
+        make_square_table_leg_part(index=index, init_pos=pos)
+        for index, pos in enumerate(LEG_INIT_POSITIONS, start=1)
+    ),
+)
+
+RELATIONS: tuple[AssemblyRelationSpec, ...] = (
+    make_relation(
+        parent="square_table_top",
+        child="square_table_leg4",
+        target_positions=TABLE_LEG_TARGET_POSITIONS,
+    ),
+)
 
 
 class OneLegAssemblySpec(AssemblySpec):
@@ -22,55 +99,10 @@ class OneLegAssemblySpec(AssemblySpec):
 
     def __init__(self):
         super().__init__(
-            name="one_leg",
-            asset_root=ONE_LEG_ASSET_ROOT,
-            parts=(
-                BaseTagPart(init_pos=(0.5015, 0.0, 0.775)),
-                ObstaclePart(
-                    scene_key="obstacle_front",
-                    asset_name="obstacle_front",
-                    prim_name="ObstacleFront",
-                    urdf_rel_path="urdf/obstacle_front.urdf",
-                    init_pos=(0.8815, 0.0, 0.79),
-                    init_rot=ROT_Z_90,
-                ),
-                ObstaclePart(
-                    scene_key="obstacle_right",
-                    asset_name="obstacle_side",
-                    prim_name="ObstacleRight",
-                    urdf_rel_path="urdf/obstacle_side.urdf",
-                    init_pos=(0.8065, -0.175, 0.79),
-                    init_rot=ROT_Z_90,
-                ),
-                ObstaclePart(
-                    scene_key="obstacle_left",
-                    asset_name="obstacle_side",
-                    prim_name="ObstacleLeft",
-                    urdf_rel_path="urdf/obstacle_side.urdf",
-                    init_pos=(0.8065, 0.175, 0.79),
-                    init_rot=ROT_Z_90,
-                ),
-                SquareTableTopPart(),
-                SquareTableLegPart(index=1, init_pos=(0.5715, -0.2, 0.79)),
-                SquareTableLegPart(index=2, init_pos=(0.5715, -0.12, 0.79)),
-                SquareTableLegPart(index=3, init_pos=(0.5715, 0.12, 0.79)),
-                SquareTableLegPart(index=4, init_pos=(0.5715, 0.2, 0.79)),
-            ),
-            assembly_relations=(
-                AssemblyRelationSpec(
-                    parent="square_table_top",
-                    child="square_table_leg4",
-                    target_poses=(
-                        AssemblyTargetPose(pos=(-0.05625, 0.046875, -0.05625)),
-                        AssemblyTargetPose(pos=(0.05625, 0.046875, -0.05625)),
-                        AssemblyTargetPose(pos=(-0.05625, 0.046875, 0.05625)),
-                        AssemblyTargetPose(pos=(0.05625, 0.046875, 0.05625)),
-                    ),
-                    default_target_index=0,
-                    pos_threshold=(0.010, 0.005, 0.010),
-                    ori_bound=0.94,
-                ),
-            ),
+            name=ASSEMBLY_NAME,
+            asset_root=ASSET_ROOT,
+            parts=PARTS,
+            assembly_relations=RELATIONS,
         )
 
 
