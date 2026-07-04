@@ -4,7 +4,8 @@ Assembly Benchmark is an Isaac Lab extension for assembly-task experiments. It p
 environment, while individual assembly scenes are registered through `AssemblySpec`. The current default scene is
 `one_leg`.
 
-For architecture details, see [DESIGN.md](source/assembly_benchmark/docs/DESIGN.md).
+The GitHub Wiki is published from [docs/wiki](docs/wiki) at
+https://github.com/kaizhenSun/assembly_benchmark/wiki.
 
 ## Overview
 
@@ -12,11 +13,19 @@ Registered tasks:
 
 ```text
 Assembly-Benchmark-Direct-v0
+Assembly-Benchmark-Cabinet-Direct-v0
+Assembly-Benchmark-Chair-Direct-v0
+Assembly-Benchmark-Desk-Direct-v0
+Assembly-Benchmark-Drawer-Direct-v0
+Assembly-Benchmark-Lamp-Direct-v0
 Assembly-Benchmark-OneLeg-Direct-v0
+Assembly-Benchmark-RoundTable-Direct-v0
+Assembly-Benchmark-SquareTable-Direct-v0
+Assembly-Benchmark-Stool-Direct-v0
 ```
 
 `Assembly-Benchmark-Direct-v0` is the default generic entry point. It currently points to `one_leg`.
-`Assembly-Benchmark-OneLeg-Direct-v0` is the explicit task id for the `one_leg` scene.
+Every registered assembly also gets an explicit `Assembly-Benchmark-<Name>-Direct-v0` task id.
 
 ## Requirements
 
@@ -64,6 +73,14 @@ python scripts/zero_agent.py \
   --num_envs 1 --device cuda:0 --headless --enable_cameras
 ```
 
+Run any explicit scene after generating its USD assets:
+
+```bash
+python scripts/zero_agent.py \
+  --task=Assembly-Benchmark-Chair-Direct-v0 \
+  --num_envs 1 --device cuda:0 --headless --enable_cameras
+```
+
 The assembly scene includes an RGB work camera. Generic Isaac Lab runners must be launched with `--enable_cameras`.
 Tool scripts may set this automatically when they own the camera setup.
 
@@ -85,10 +102,29 @@ python scripts/random_agent.py \
   --num_envs 1 --device cuda:0 --headless --enable_cameras
 ```
 
-Preview the assembled `one_leg` target pose:
+Preview assembled target poses:
 
 ```bash
-python scripts/tools/preview_one_leg_assembled_pose.py --num_envs 1 --device cuda:0
+python scripts/tools/preview_assembly_assembled_pose.py --assembly one_leg --num_envs 1 --device cuda:0
+python scripts/tools/preview_assembly_assembled_pose.py --assembly chair --num_envs 1 --device cuda:0
+python scripts/tools/preview_assembly_assembled_pose.py --assembly desk --num_envs 1 --device cuda:0 --disable_markers
+```
+
+The preview tool defaults to visual-only `ghost` physics for assembly parts so target poses are not pushed apart by
+collision depenetration. Use `--disable_markers` or a smaller `--marker_scale` when you want to inspect only the
+assembled geometry. To check the old dynamic collision behavior:
+
+```bash
+python scripts/tools/preview_assembly_assembled_pose.py \
+  --assembly chair --num_envs 1 --device cuda:0 --physics_mode dynamic
+```
+
+Preview a single relation and print measured relative poses:
+
+```bash
+python scripts/tools/preview_assembly_assembled_pose.py \
+  --assembly chair --mode relation_child --relation_index 2 --target_index 0 --print_poses \
+  --num_envs 1 --device cuda:0
 ```
 
 Run the `one_leg` scripted assembly demo:
@@ -108,7 +144,10 @@ python scripts/tools/run_r1_pro_keyboard_teleop.py \
 Regenerate assembly USD assets:
 
 ```bash
-python scripts/tools/generate_assembly_usd_assets.py --assembly one_leg --overwrite
+for assembly in cabinet chair desk drawer lamp one_leg round_table square_table stool; do
+  PYTHONPATH=source/assembly_benchmark \
+    python scripts/tools/generate_assembly_usd_assets.py --assembly "$assembly" --overwrite
+done
 ```
 
 Train with RSL-RL:
@@ -129,13 +168,30 @@ python scripts/rsl_rl/play.py \
 
 Other RL backends are available under `scripts/rl_games`, `scripts/sb3`, and `scripts/skrl`.
 
-## one_leg Scene
+## Assembly Scenes
 
-`one_leg` is the current default assembly scene. It contains R1 Pro, LabTable, a base tag, obstacles, one square table
-top, and four square table legs.
+`one_leg` is the current default assembly scene. It contains R1 Pro, LabTable, a base tag, one square table top, and four
+square table legs. Obstacles are not part of the current scene spec.
 
 The current success condition uses the primary relation `square_table_top -> square_table_leg4`. The task succeeds when
 leg4 matches any valid table-corner target pose relative to the tabletop.
+
+`chair`, `square_table`, `desk`, `round_table`, `drawer`, `lamp`, `stool`, and `cabinet` are ported from FurnitureBench
+in the same spec style. Source URDF/mesh/tag assets live under `assets/furniture/<assembly>`; generate USD assets before
+launching a newly ported task in Isaac Lab.
+
+The chair spec keeps all five FurnitureBench assembly relations:
+
+```text
+chair_seat -> chair_leg1
+chair_seat -> chair_leg2
+chair_seat -> chair_back
+chair_seat -> chair_nut1
+chair_seat -> chair_nut2
+```
+
+The generic RL environment currently uses the first relation as `primary_relation` for sparse success. Multi-relation
+full-assembly success is not modeled yet.
 
 Assembly parts default to `observe=False`. The default policy observation contains robot joint state, end-effector
 poses, and assembly target poses, but not per-part root poses. Set `observe=True` on a part spec only when that part pose
@@ -148,10 +204,11 @@ location to avoid cascading USD reference migrations.
 
 New scenes should follow the existing spec-driven pattern used by `one_leg`:
 
-1. Add a spec module that returns an `AssemblySpec`.
-2. Define a unique `scene_key`, asset paths, initial pose, body type, mass, and reset/observe policy for each part.
+1. Add one spec module, for example `assembly/<name>.py`, that returns an `AssemblySpec`.
+2. Define a unique `scene_key`, asset paths, initial pose, body type, mass or density, and reset/observe policy for each
+   part.
 3. Define at least one `AssemblyRelationSpec` with a parent, child, and child target poses in the parent frame.
-4. Register the scene with `assembly_benchmark.assembly.register_assembly(name, factory)`.
+4. Register the scene in `assembly/registry.py`.
 5. Generate USD assets:
 
 ```bash
@@ -175,7 +232,6 @@ source/assembly_benchmark/
     robots/                            # Isaac Lab ArticulationCfg definitions
     tasks/direct/assembly_benchmark/   # generic assembly environment, cfg generation, and task registration
   config/extension.toml                # Isaac Lab extension metadata
-  docs/DESIGN.md                       # architecture-level design document
 
 scripts/
   list_envs.py                         # list registered tasks
@@ -183,7 +239,7 @@ scripts/
   random_agent.py                      # random-action smoke test
   rsl_rl/                              # RSL-RL train/play scripts
   tools/generate_assembly_usd_assets.py # assembly URDF-to-USD generation
-  tools/preview_one_leg_assembled_pose.py # one_leg assembled pose preview
+  tools/preview_assembly_assembled_pose.py # assembled target-pose preview
   tools/run_r1_pro_keyboard_teleop.py  # R1 Pro keyboard teleoperation
 ```
 
@@ -192,13 +248,43 @@ scripts/
 Run unit tests:
 
 ```bash
-pytest tests
+PYTHONPATH=source/assembly_benchmark python -m pytest tests/test_one_leg_assembly.py -q
 ```
 
-Run a Python syntax check:
+Run Python syntax checks:
 
 ```bash
-python -m py_compile scripts/tools/preview_one_leg_assembled_pose.py
+python -m compileall -q source/assembly_benchmark/assembly_benchmark/assembly
+python -m compileall -q scripts/tools/preview_assembly_assembled_pose.py
+python -m compileall -q scripts/tools/generate_assembly_usd_assets.py
+```
+
+Run a lightweight assembly contract check without Isaac Lab:
+
+```bash
+PYTHONPATH=source/assembly_benchmark python - <<'PY'
+from assembly_benchmark.assembly import available_assemblies, make_assembly
+
+assert available_assemblies() == (
+    "cabinet",
+    "chair",
+    "desk",
+    "drawer",
+    "lamp",
+    "one_leg",
+    "round_table",
+    "square_table",
+    "stool",
+)
+for assembly_name in available_assemblies():
+    assembly = make_assembly(assembly_name)
+    assert assembly.part_names[0] == "base_tag"
+    assert assembly.reset_part_names == assembly.part_names[1:]
+    assert assembly.assembly_relations
+    for part in assembly.parts:
+        assert part.urdf_path(assembly.asset_root).is_file(), part.urdf_path(assembly.asset_root)
+print("assembly contract ok")
+PY
 ```
 
 Use pre-commit:

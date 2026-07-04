@@ -1,0 +1,63 @@
+name: Sync GitHub Wiki
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/wiki/**"
+      - ".github/workflows/sync-wiki.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-wiki
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate wiki source
+        run: |
+          test -f docs/wiki/Home.md
+          test -f docs/wiki/_Sidebar.md
+
+      - name: Clone wiki
+        env:
+          WIKI_PUSH_TOKEN: ${{ secrets.WIKI_PUSH_TOKEN }}
+        run: |
+          if [ -z "$WIKI_PUSH_TOKEN" ]; then
+            echo "WIKI_PUSH_TOKEN is not configured. Add a repository secret with permission to push the wiki."
+            exit 1
+          fi
+
+          git clone \
+            "https://x-access-token:${WIKI_PUSH_TOKEN}@github.com/${{ github.repository }}.wiki.git" \
+            wiki
+
+      - name: Replace wiki contents
+        run: |
+          find wiki -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -a docs/wiki/. wiki/
+
+      - name: Commit and push wiki
+        working-directory: wiki
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "Wiki is already up to date."
+            exit 0
+          fi
+
+          git add -A
+          git commit -m "Sync wiki from ${GITHUB_REPOSITORY}@${GITHUB_SHA}"
+          git push

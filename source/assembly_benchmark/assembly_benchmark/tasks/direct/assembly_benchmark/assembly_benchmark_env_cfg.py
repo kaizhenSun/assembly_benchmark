@@ -34,7 +34,15 @@ from assembly_benchmark.robots.r1_pro import (
 DEFAULT_ASSEMBLY_NAME = "one_leg"
 DEFAULT_NUM_ENVS = 16
 DEFAULT_ENV_SPACING = 4.0
-DEFAULT_OBSERVATION_SPACE = 86
+POSE_OBSERVATION_SIZE = 7
+CONTROLLED_JOINT_COUNT = (
+    len(R1_PRO_TORSO_JOINT_NAMES)
+    + len(R1_PRO_LEFT_ARM_JOINT_NAMES)
+    + len(R1_PRO_RIGHT_ARM_JOINT_NAMES)
+    + len(R1_PRO_LEFT_GRIPPER_JOINT_NAMES)
+    + len(R1_PRO_RIGHT_GRIPPER_JOINT_NAMES)
+)
+DEFAULT_OBSERVATION_SPACE = 2 * CONTROLLED_JOINT_COUNT + 6 * POSE_OBSERVATION_SIZE
 
 
 def _assembly_class_prefix(assembly_name: str) -> str:
@@ -55,6 +63,16 @@ def assembly_env_cfg_class_name(assembly_name: str) -> str:
 def assembly_task_id(assembly_name: str) -> str:
     """Return the explicit Isaac Lab task id for an assembly."""
     return f"Assembly-Benchmark-{_assembly_class_prefix(assembly_name)}-Direct-v0"
+
+
+def assembly_observation_space(assembly: AssemblySpec) -> int:
+    """Return policy observation size for one assembly config."""
+    return (
+        2 * CONTROLLED_JOINT_COUNT
+        + 2 * POSE_OBSERVATION_SIZE
+        + len(assembly.observation_part_names) * POSE_OBSERVATION_SIZE
+        + len(assembly.primary_relation.target_poses) * POSE_OBSERVATION_SIZE
+    )
 
 
 @configclass
@@ -193,6 +211,7 @@ def make_assembly_env_cfg_class(
             env_spacing=DEFAULT_ENV_SPACING,
             replicate_physics=True,
         ),
+        "observation_space": assembly_observation_space(assembly),
         "assembly_name": assembly.name,
         "assembly_part_names": assembly.part_names,
         "assembly_reset_part_names": assembly.reset_part_names,
@@ -223,6 +242,7 @@ __all__ = [
     "AssemblyBenchmarkEnvCfg",
     "DEFAULT_ASSEMBLY_NAME",
     "DEFAULT_OBSERVATION_SPACE",
+    "assembly_observation_space",
     "assembly_env_cfg_class_name",
     "assembly_scene_cfg_class_name",
     "assembly_task_id",

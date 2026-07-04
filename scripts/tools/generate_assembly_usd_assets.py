@@ -151,12 +151,22 @@ def _generate_dynamic_asset(
     assembly_name: str,
     asset_name: str,
     urdf_path: Path,
-    mass: float,
+    mass: float | None,
+    density: float | None,
     output_dir: Path,
     overwrite: bool,
 ) -> None:
     asset_dir = output_dir / asset_name
     _prepare_output_dir(asset_dir, overwrite)
+    mass_props = None
+    link_density = 0.0
+    if mass is not None:
+        mass_props = sim_utils.MassPropertiesCfg(mass=mass)
+    elif density is not None:
+        link_density = density
+    else:
+        raise ValueError(f"Dynamic asset '{asset_name}' is missing mass or density.")
+
     cfg = sim_utils.UrdfFileCfg(
         asset_path=str(urdf_path),
         usd_dir=str(asset_dir),
@@ -164,11 +174,12 @@ def _generate_dynamic_asset(
         make_instanceable=False,
         joint_drive=None,
         collision_from_visuals=False,
+        link_density=link_density,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
             max_depenetration_velocity=5.0,
         ),
-        mass_props=sim_utils.MassPropertiesCfg(mass=mass),
+        mass_props=mass_props,
     )
     converter = sim_utils.UrdfConverter(cfg)
     _convert_composed_colliders_to_sdf(converter.usd_path)
@@ -186,13 +197,12 @@ def main() -> None:
 
     for asset in assembly.usd_generation_assets():
         if asset.is_dynamic:
-            if asset.mass is None:
-                raise ValueError(f"Dynamic asset '{asset.asset_name}' is missing mass.")
             _generate_dynamic_asset(
                 assembly.name,
                 asset.asset_name,
                 asset.urdf_path,
                 asset.mass,
+                asset.density,
                 output_dir,
                 args_cli.overwrite,
             )
