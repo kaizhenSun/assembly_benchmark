@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -15,6 +16,12 @@ from typing import Literal
 Quat = tuple[float, float, float, float]
 Vec3 = tuple[float, float, float]
 PartBodyType = Literal["visual", "static", "dynamic"]
+
+ASSEMBLY_ASSET_ROOT = Path(__file__).resolve().parents[1] / "assets" / "furniture"
+IDENTITY_QUAT: Quat = (1.0, 0.0, 0.0, 0.0)
+DEFAULT_TARGET_INDEX = 0
+DEFAULT_POS_THRESHOLD: Vec3 = (0.010, 0.005, 0.010)
+DEFAULT_ORI_BOUND = 0.94
 
 
 @dataclass(frozen=True)
@@ -43,6 +50,107 @@ class AssemblyPartSpec:
         return asset_root / self.urdf_rel_path
 
 
+def assembly_asset_root(name: str) -> Path:
+    """Return the checked-in asset root for an assembly."""
+    return ASSEMBLY_ASSET_ROOT / name
+
+
+def make_part(
+    *,
+    scene_key: str,
+    asset_name: str,
+    prim_name: str,
+    urdf_rel_path: str | Path,
+    init_pos: Vec3,
+    init_rot: Quat,
+    body_type: PartBodyType,
+    mass: float | None = None,
+    observe: bool = False,
+    reset: bool = True,
+    tag_ids: tuple[int, ...] = (),
+    reset_footprint_xy: tuple[float, float] | None = None,
+) -> AssemblyPartSpec:
+    """Create one assembly part spec."""
+    return AssemblyPartSpec(
+        scene_key=scene_key,
+        asset_name=asset_name,
+        prim_name=prim_name,
+        urdf_rel_path=Path(urdf_rel_path),
+        init_pos=init_pos,
+        init_rot=init_rot,
+        body_type=body_type,
+        mass=mass,
+        observe=observe,
+        reset=reset,
+        tag_ids=tag_ids,
+        reset_footprint_xy=reset_footprint_xy,
+    )
+
+
+def make_visual_part(
+    *,
+    scene_key: str,
+    asset_name: str,
+    prim_name: str,
+    urdf_rel_path: str | Path,
+    init_pos: Vec3,
+    init_rot: Quat = IDENTITY_QUAT,
+    tag_ids: tuple[int, ...] = (),
+) -> AssemblyPartSpec:
+    """Create a non-reset visual assembly part."""
+    return make_part(
+        scene_key=scene_key,
+        asset_name=asset_name,
+        prim_name=prim_name,
+        urdf_rel_path=urdf_rel_path,
+        init_pos=init_pos,
+        init_rot=init_rot,
+        body_type="visual",
+        reset=False,
+        tag_ids=tag_ids,
+    )
+
+
+def make_dynamic_part(
+    *,
+    scene_key: str,
+    asset_name: str,
+    prim_name: str,
+    urdf_rel_path: str | Path,
+    init_pos: Vec3,
+    init_rot: Quat,
+    mass: float,
+    tag_ids: tuple[int, ...] = (),
+    reset_footprint_xy: tuple[float, float] | None = None,
+) -> AssemblyPartSpec:
+    """Create a resettable dynamic assembly part."""
+    return make_part(
+        scene_key=scene_key,
+        asset_name=asset_name,
+        prim_name=prim_name,
+        urdf_rel_path=urdf_rel_path,
+        init_pos=init_pos,
+        init_rot=init_rot,
+        body_type="dynamic",
+        mass=mass,
+        tag_ids=tag_ids,
+        reset_footprint_xy=reset_footprint_xy,
+    )
+
+
+def make_base_tag_part(init_pos: Vec3, init_rot: Quat = IDENTITY_QUAT) -> AssemblyPartSpec:
+    """Create the standard base tag visual asset."""
+    return make_visual_part(
+        scene_key="base_tag",
+        asset_name="base_tag",
+        prim_name="BaseTag",
+        urdf_rel_path="urdf/base_tag.urdf",
+        init_pos=init_pos,
+        init_rot=init_rot,
+        tag_ids=(0, 1, 2, 3),
+    )
+
+
 @dataclass(frozen=True)
 class AssemblyTargetPose:
     """Candidate child pose in the parent part frame."""
@@ -58,14 +166,43 @@ class AssemblyRelationSpec:
     parent: str
     child: str
     target_poses: tuple[AssemblyTargetPose, ...]
-    default_target_index: int = 0
-    pos_threshold: Vec3 = (0.010, 0.005, 0.010)
-    ori_bound: float = 0.94
+    default_target_index: int = DEFAULT_TARGET_INDEX
+    pos_threshold: Vec3 = DEFAULT_POS_THRESHOLD
+    ori_bound: float = DEFAULT_ORI_BOUND
 
     @property
     def default_target_pose(self) -> AssemblyTargetPose:
         """Return the target pose used by scripted demos."""
         return self.target_poses[self.default_target_index]
+
+
+def make_relation(
+    parent: str,
+    child: str,
+    target_positions: Iterable[Vec3],
+    *,
+    target_quats: Iterable[Quat] | None = None,
+    default_target_index: int = DEFAULT_TARGET_INDEX,
+    pos_threshold: Vec3 = DEFAULT_POS_THRESHOLD,
+    ori_bound: float = DEFAULT_ORI_BOUND,
+) -> AssemblyRelationSpec:
+    """Create an assembly relation from readable target pose tuples."""
+    if target_quats is None:
+        target_poses = tuple(AssemblyTargetPose(pos=pos) for pos in target_positions)
+    else:
+        target_poses = tuple(
+            AssemblyTargetPose(pos=pos, quat=quat)
+            for pos, quat in zip(target_positions, target_quats, strict=True)
+        )
+
+    return AssemblyRelationSpec(
+        parent=parent,
+        child=child,
+        target_poses=target_poses,
+        default_target_index=default_target_index,
+        pos_threshold=pos_threshold,
+        ori_bound=ori_bound,
+    )
 
 
 @dataclass(frozen=True)
