@@ -18,6 +18,12 @@ def make_assembly_part_spawn_cfg(
 ) -> sim_utils.UsdFileCfg:
     """Create a USD spawn config for an assembly part."""
     usd_path = str(part.usd_path(assembly.asset_root))
+    mass_props = None
+    if part.mass is not None:
+        mass_props = sim_utils.MassPropertiesCfg(mass=part.mass)
+    elif part.density is not None:
+        mass_props = sim_utils.MassPropertiesCfg(density=part.density)
+
     if part.body_type == "visual":
         return sim_utils.UsdFileCfg(usd_path=usd_path)
     if part.body_type == "static":
@@ -35,7 +41,7 @@ def make_assembly_part_spawn_cfg(
                 disable_gravity=False,
                 max_depenetration_velocity=5.0,
             ),
-            mass_props=sim_utils.MassPropertiesCfg(mass=part.mass),
+            mass_props=mass_props,
         )
     raise ValueError(f"Unsupported body type '{part.body_type}' for part '{part.scene_key}'.")
 

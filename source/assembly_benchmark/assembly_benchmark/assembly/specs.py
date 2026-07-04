@@ -36,6 +36,7 @@ class AssemblyPartSpec:
     init_rot: Quat
     body_type: PartBodyType
     mass: float | None = None
+    density: float | None = None
     observe: bool = False
     reset: bool = True
     tag_ids: tuple[int, ...] = ()
@@ -65,6 +66,7 @@ def make_part(
     init_rot: Quat,
     body_type: PartBodyType,
     mass: float | None = None,
+    density: float | None = None,
     observe: bool = False,
     reset: bool = True,
     tag_ids: tuple[int, ...] = (),
@@ -80,6 +82,7 @@ def make_part(
         init_rot=init_rot,
         body_type=body_type,
         mass=mass,
+        density=density,
         observe=observe,
         reset=reset,
         tag_ids=tag_ids,
@@ -119,7 +122,8 @@ def make_dynamic_part(
     urdf_rel_path: str | Path,
     init_pos: Vec3,
     init_rot: Quat,
-    mass: float,
+    mass: float | None = None,
+    density: float | None = None,
     tag_ids: tuple[int, ...] = (),
     reset_footprint_xy: tuple[float, float] | None = None,
 ) -> AssemblyPartSpec:
@@ -133,6 +137,7 @@ def make_dynamic_part(
         init_rot=init_rot,
         body_type="dynamic",
         mass=mass,
+        density=density,
         tag_ids=tag_ids,
         reset_footprint_xy=reset_footprint_xy,
     )
@@ -213,6 +218,7 @@ class UsdGenerationAssetSpec:
     urdf_path: Path
     body_type: PartBodyType
     mass: float | None
+    density: float | None
 
     @property
     def is_dynamic(self) -> bool:
@@ -243,6 +249,18 @@ class AssemblySpec:
             raise ValueError(
                 f"Assembly '{self.name}' has part scene keys that are not valid Python identifiers: {invalid}."
             )
+
+        for part in self.parts:
+            if part.body_type == "dynamic":
+                if (part.mass is None) == (part.density is None):
+                    raise ValueError(
+                        f"Assembly '{self.name}' dynamic part '{part.scene_key}' must declare exactly one "
+                        "of mass or density."
+                    )
+            elif part.mass is not None or part.density is not None:
+                raise ValueError(
+                    f"Assembly '{self.name}' non-dynamic part '{part.scene_key}' must not declare mass or density."
+                )
 
         part_name_set = set(part_names)
         for relation in self.assembly_relations:
@@ -307,6 +325,7 @@ class AssemblySpec:
                     urdf_path=part.urdf_path(self.asset_root),
                     body_type=part.body_type,
                     mass=part.mass,
+                    density=part.density,
                 )
             )
         return tuple(assets)
