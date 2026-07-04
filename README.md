@@ -301,3 +301,4 @@ python scripts/zero_agent.py \
   --task=Assembly-Benchmark-Direct-v0 \
   --num_envs 1 --device cpu --disable_fabric --enable_cameras
 ```
+
