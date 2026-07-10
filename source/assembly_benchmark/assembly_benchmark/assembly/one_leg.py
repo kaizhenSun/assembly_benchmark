@@ -19,7 +19,6 @@ from .specs import (
     make_relation,
 )
 
-
 ASSEMBLY_NAME = "one_leg"
 ASSET_ROOT = assembly_asset_root(ASSEMBLY_NAME)
 ONE_LEG_ASSET_ROOT = ASSET_ROOT
@@ -70,6 +69,7 @@ def make_square_table_leg_part(index: int, init_pos: Vec3) -> AssemblyPartSpec:
         urdf_rel_path=f"urdf/square_table/{scene_key}.urdf",
         init_pos=init_pos,
         init_rot=SQUARE_TABLE_LEG_ROT,
+        # mass=0.531,
         mass=0.0231,
         tag_ids=tuple(range(tag_start, tag_start + 4)),
         reset_footprint_xy=(0.05, 0.0875),
@@ -79,10 +79,7 @@ def make_square_table_leg_part(index: int, init_pos: Vec3) -> AssemblyPartSpec:
 PARTS: tuple[AssemblyPartSpec, ...] = (
     make_base_tag_part(init_pos=BASE_TAG_POS),
     make_square_table_top_part(),
-    *(
-        make_square_table_leg_part(index=index, init_pos=pos)
-        for index, pos in enumerate(LEG_INIT_POSITIONS, start=1)
-    ),
+    *(make_square_table_leg_part(index=index, init_pos=pos) for index, pos in enumerate(LEG_INIT_POSITIONS, start=1)),
 )
 
 RELATIONS: tuple[AssemblyRelationSpec, ...] = (

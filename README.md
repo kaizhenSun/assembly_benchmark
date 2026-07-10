@@ -4,6 +4,10 @@ Assembly Benchmark is an Isaac Lab extension for assembly-task experiments. It p
 environment, while individual assembly scenes are registered through `AssemblySpec`. The current default scene is
 `one_leg`.
 
+The R1 Pro model also includes four optional VT-Refine-style gripper tactile pads. Each pad samples a `12 x 32` taxel
+grid, and tactile data can be visualized during keyboard teleoperation or appended to policy observations when enabled.
+Tactile sensing is disabled in the default task configuration.
+
 The GitHub Wiki is published from [docs/wiki](docs/wiki) at
 https://github.com/kaizhenSun/assembly_benchmark/wiki.
 
@@ -141,6 +145,31 @@ python scripts/tools/run_r1_pro_keyboard_teleop.py \
   --num_envs 1 --device cuda:0 --enable_cameras
 ```
 
+Keyboard teleoperation requires a GUI and currently supports one environment. Its four-panel 3D tactile pressure view
+is enabled by default. Disable the panel or tune its force scaling and refresh rate with:
+
+```bash
+python scripts/tools/run_r1_pro_keyboard_teleop.py \
+  --num_envs 1 --device cuda:0 --enable_cameras \
+  --disable_tactile_pressure_view
+
+python scripts/tools/run_r1_pro_keyboard_teleop.py \
+  --num_envs 1 --device cuda:0 --enable_cameras \
+  --tactile_pressure_scale 1.0 --tactile_pressure_update_interval 2
+```
+
+Run the compliant-contact material diagnostic:
+
+```bash
+python scripts/diagnostics/run_compliant_contact_diagnostic.py --headless --device cuda:0
+```
+
+Regenerate the tactile-enabled R1 Pro USD after changing its URDF or gripper meshes:
+
+```bash
+python scripts/tools/convert_r1_pro_urdf.py --force --headless
+```
+
 Regenerate assembly USD assets:
 
 ```bash
@@ -200,6 +229,33 @@ should be exposed to the policy.
 The Python API now uses generic `assembly` naming. The on-disk path `assets/furniture/...` is kept as a historical asset
 location to avoid cascading USD reference migrations.
 
+## Tactile Sensing
+
+The R1 Pro grippers expose four tactile pads: two fingers on each hand. Every pad produces 384 taxels, and every taxel
+is represented as `[x, y, z, normal_force]`. Enabling all four sensors without policy observations leaves the
+observation space unchanged:
+
+```python
+env_cfg.enable_r1_pro_gripper_tactile = True
+```
+
+To append normalized tactile data to the policy observation, use:
+
+```python
+env_cfg.append_r1_pro_gripper_tactile_to_policy = True
+```
+
+This injects the sensors, adds `4 * 12 * 32 * 4 = 6144` values to the policy observation, and updates
+`observation_space`. Tactile contact targets default to all resettable assembly parts. Restrict them with scene keys:
+
+```python
+env_cfg.r1_pro_gripper_tactile_contact_part_names = ("square_table_leg4",)
+```
+
+Contact targets must provide SDF mesh colliders. The lower-level table-mounted tactile helpers are available through
+`assembly_benchmark.sensors`, but the generic environment does not inject a table sensor automatically. See
+[Tactile Sensing](docs/wiki/Tactile-Sensing.md) for configuration, data conventions, visualization, and diagnostics.
+
 ## Adding Assembly Scenes
 
 New scenes should follow the existing spec-driven pattern used by `one_leg`:
@@ -228,16 +284,20 @@ source/assembly_benchmark/
   assembly_benchmark/
     assembly/                          # AssemblySpec, part specs, registry, and Isaac cfg helpers
     assets/robots/r1_pro/              # R1 Pro URDF, meshes, config, and generated USD
+    assets/sensors/vt_refine_tactile/  # tactile-pad collision meshes
     controllers/                       # R1 Pro joint and Differential IK controllers
     robots/                            # Isaac Lab ArticulationCfg definitions
+    sensors/                           # VT-Refine-style tactile sensor and scene cfg helpers
     tasks/direct/assembly_benchmark/   # generic assembly environment, cfg generation, and task registration
   config/extension.toml                # Isaac Lab extension metadata
 
 scripts/
+  diagnostics/run_compliant_contact_diagnostic.py # tactile compliant-contact validation
   list_envs.py                         # list registered tasks
   zero_agent.py                        # zero-action smoke test
   random_agent.py                      # random-action smoke test
   rsl_rl/                              # RSL-RL train/play scripts
+  tools/convert_r1_pro_urdf.py         # R1 Pro URDF-to-USD conversion and tactile material authoring
   tools/generate_assembly_usd_assets.py # assembly URDF-to-USD generation
   tools/preview_assembly_assembled_pose.py # assembled target-pose preview
   tools/run_r1_pro_keyboard_teleop.py  # R1 Pro keyboard teleoperation
@@ -249,6 +309,9 @@ Run unit tests:
 
 ```bash
 PYTHONPATH=source/assembly_benchmark python -m pytest tests/test_one_leg_assembly.py -q
+PYTHONPATH=source/assembly_benchmark python -m pytest \
+  tests/test_vt_refine_tactile.py tests/test_r1_pro_tactile.py \
+  tests/test_r1_pro_tactile_assets.py tests/test_r1_pro_robot_cfg.py -q
 ```
 
 Run Python syntax checks:
@@ -301,4 +364,3 @@ python scripts/zero_agent.py \
   --task=Assembly-Benchmark-Direct-v0 \
   --num_envs 1 --device cpu --disable_fabric --enable_cameras
 ```
-

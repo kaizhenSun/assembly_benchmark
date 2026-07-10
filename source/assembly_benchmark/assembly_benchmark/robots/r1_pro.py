@@ -30,6 +30,7 @@ R1_PRO_CONTROLLED_JOINT_NAMES = R1_PRO_ARM_JOINT_NAMES + R1_PRO_GRIPPER_JOINT_NA
 R1_PRO_TORSO_HOME_POS = [0.8000, -1.8600, -1.3999, 0.0000]
 R1_PRO_LEFT_ARM_HOME_POS = [-0.4, 1.3, -0.7, -1.57, 1.3, -0.4, -0.8]
 R1_PRO_RIGHT_ARM_HOME_POS = [-0.4, -1.3, 0.7, -1.57, -1.3, -0.4, 0.8]
+R1_PRO_GRIPPER_HOME_POS = 0.05
 
 R1_PRO_LEFT_EE_LINK_NAME = "left_gripper_link"
 R1_PRO_RIGHT_EE_LINK_NAME = "right_gripper_link"
@@ -43,7 +44,7 @@ R1_PRO_HOME_JOINT_POS = {
     **dict(zip(R1_PRO_TORSO_JOINT_NAMES, R1_PRO_TORSO_HOME_POS, strict=True)),
     **dict(zip(R1_PRO_LEFT_ARM_JOINT_NAMES, R1_PRO_LEFT_ARM_HOME_POS, strict=True)),
     **dict(zip(R1_PRO_RIGHT_ARM_JOINT_NAMES, R1_PRO_RIGHT_ARM_HOME_POS, strict=True)),
-    **{name: 0.0 for name in R1_PRO_GRIPPER_JOINT_NAMES},
+    **{name: R1_PRO_GRIPPER_HOME_POS for name in R1_PRO_GRIPPER_JOINT_NAMES},
 }
 
 R1_PRO_CFG = ArticulationCfg(
@@ -107,18 +108,18 @@ R1_PRO_CFG = ArticulationCfg(
         ),
         "left_gripper": ImplicitActuatorCfg(
             joint_names_expr=["left_gripper_finger_joint[1-2]"],
-            effort_limit_sim=40.0,
-            velocity_limit_sim=0.10,
-            stiffness=1500.0,
-            damping=300.0,
+            effort_limit_sim=200.0,
+            velocity_limit_sim=0.05,
+            stiffness=5000.0,
+            damping=150.0,
             armature=0.001,
         ),
         "right_gripper": ImplicitActuatorCfg(
             joint_names_expr=["right_gripper_finger_joint[1-2]"],
-            effort_limit_sim=40.0,
-            velocity_limit_sim=0.10,
-            stiffness=1500.0,
-            damping=300.0,
+            effort_limit_sim=200.0,
+            velocity_limit_sim=0.05,
+            stiffness=5000.0,
+            damping=150.0,
             armature=0.001,
         ),
     },

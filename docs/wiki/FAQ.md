@@ -50,6 +50,33 @@ multi-stage full-assembly success are future work.
 Only for parts with `observe=True`. Assembly parts default to `observe=False` so new scenes do not accidentally change
 the policy observation space.
 
+## Is gripper tactile sensing enabled by default?
+
+No. Gym task configurations default to `enable_r1_pro_gripper_tactile=False` and
+`append_r1_pro_gripper_tactile_to_policy=False`. The keyboard teleoperation tool enables the four gripper sensors for
+its pressure panel unless `--disable_tactile_pressure_view` is passed.
+
+## How does tactile sensing change the policy observation?
+
+Setting `append_r1_pro_gripper_tactile_to_policy=True` appends four `12 x 32` arrays. Each taxel contains
+`[x, y, z, normal_force]`, so the policy receives 6144 additional values and the configured `observation_space` is
+updated automatically. Enabling sensors with only `enable_r1_pro_gripper_tactile=True` does not change observations.
+
+Existing policies trained for the original observation dimension should keep tactile policy observations disabled.
+
+## Why are all tactile forces zero?
+
+Check that the sensors were enabled before environment construction and that the configured contact parts contain
+PhysX SDF mesh colliders. An empty `r1_pro_gripper_tactile_contact_part_names` tuple targets all resettable assembly
+parts; explicit names must be valid assembly scene keys. The teleoperation diagnostics report penetration depth and
+active taxels, which can distinguish missing contact from a visualization scaling issue.
+
+## Is the table-mounted tactile sensor part of every task?
+
+No. The table pad and sensor are lower-level helpers. Call `configure_table_tactile_scene_cfg(env_cfg)` explicitly
+before scene construction after setting `enable_table_tactile=True`. `AssemblyBenchmarkEnv` does not call this helper
+and does not append table tactile data to policy observations.
+
 ## How is this wiki published?
 
 The canonical source lives in `docs/wiki/` in the main repository. The `sync-wiki.yml` GitHub Actions workflow clones
