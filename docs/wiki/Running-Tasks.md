@@ -4,6 +4,9 @@
 `Assembly-Benchmark-<Name>-Direct-v0` for a specific registered assembly. Generic runners require
 `--enable_cameras` because the shared scene includes an RGB work camera.
 
+For example, `one_leg` is exposed as `Assembly-Benchmark-OneLeg-Direct-v0`. Use `scripts/list_envs.py` after
+installation to see the exact ids currently registered by the package.
+
 ## Smoke Test
 
 ```bash
@@ -14,6 +17,14 @@ python scripts/zero_agent.py \
 
 Replace the task id with an explicit assembly task when needed.
 
+Use the random-action runner to exercise the action and control pipeline:
+
+```bash
+python scripts/random_agent.py \
+  --task=Assembly-Benchmark-Direct-v0 \
+  --num_envs 1 --device cuda:0 --headless --enable_cameras
+```
+
 ## Preview an Assembly
 
 ```bash
@@ -22,6 +33,14 @@ python scripts/tools/preview_assembly_assembled_pose.py \
 ```
 
 The preview uses visual-only `ghost` physics by default so collision depenetration does not move assembled target poses.
+
+Useful preview options:
+
+- `--mode all_relations`: show every registered assembly relation.
+- `--mode relation_child --relation_index N --target_index N`: inspect one child and target pose.
+- `--physics_mode dynamic`: keep dynamic collision behavior instead of ghost parts.
+- `--print_poses`: print world and measured relative poses.
+- `--disable_markers`: show assembled geometry without frame markers.
 
 ## Generate Assembly Assets
 
@@ -32,6 +51,7 @@ python scripts/tools/generate_assembly_usd_assets.py --assembly <name> --overwri
 ```
 
 Source assets remain under `assets/furniture/<assembly>` for compatibility with references inside generated USD files.
+Runtime tasks load the generated USD files directly; they do not invoke the URDF importer.
 
 ## Scripted Assembly and Teleoperation
 
@@ -52,6 +72,9 @@ python scripts/tools/run_r1_pro_keyboard_teleop.py \
 Keyboard teleoperation requires a GUI and supports one environment. Its tactile pressure view is enabled by default;
 see [[Tactile Sensing|Tactile-Sensing]] for controls.
 
+The separate `run_r1_pro_diff_ik.py` and `run_r1_pro_joint_response_diagnostic.py` tools help inspect controller targets
+and low-level actuator response without running an RL policy.
+
 ## Reinforcement Learning
 
 Train with RSL-RL:
@@ -64,6 +87,14 @@ python scripts/rsl_rl/train.py \
 
 Playback is available through `scripts/rsl_rl/play.py`. Other backends are under `scripts/rl_games`, `scripts/sb3`, and
 `scripts/skrl`.
+
+Play an RSL-RL checkpoint:
+
+```bash
+python scripts/rsl_rl/play.py \
+  --task=Assembly-Benchmark-Direct-v0 \
+  --num_envs 1 --device cuda:0 --headless --enable_cameras
+```
 
 ## Current Task Behavior
 
