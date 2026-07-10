@@ -54,14 +54,16 @@ gets an explicit `Assembly-Benchmark-<Name>-Direct-v0` task id.
 
 - [[Installation]] covers requirements, editable install, and verification.
 - [[Running Tasks|Running-Tasks]] collects smoke tests, preview tools, asset generation, and RL commands.
+- [[Assembly Scenes|Assembly-Scenes]] describes the default scene, ported assets, and current evaluation scope.
 - [[Tactile Sensing|Tactile-Sensing]] covers gripper taxels, environment configuration, visualization, and diagnostics.
 - [[Architecture]] explains the spec registry, generated Isaac Lab cfg classes, and runtime environment.
 - [[Adding Assembly Scenes|Adding-Assembly-Scenes]] describes how to add a new assembly spec and validate it.
+- [[Development]] collects the repository layout, tests, static checks, and contribution tooling.
 - [[FAQ]] covers cameras, default scene behavior, generated USD assets, and current limits.
 
 ## Source Documentation
 
-The quick-start README is maintained in the main repository:
+The project README is maintained in the main repository:
 
 https://github.com/kaizhenSun/assembly_benchmark/blob/main/README.md
 

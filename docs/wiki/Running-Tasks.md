@@ -158,3 +158,16 @@ python scripts/rsl_rl/play.py \
 ```
 
 Other RL backends are available under `scripts/rl_games`, `scripts/sb3`, and `scripts/skrl`.
+
+## CPU and USD Compatibility Debugging
+
+Disable Fabric when debugging CPU execution or USD synchronization:
+
+```bash
+python scripts/zero_agent.py \
+  --task=Assembly-Benchmark-Direct-v0 \
+  --num_envs 1 --device cpu --disable_fabric --enable_cameras
+```
+
+Disabling Fabric is a compatibility and debugging option; it can make GUI mesh updates diverge from the normal Fabric
+runtime path.
