@@ -6,6 +6,10 @@ RL environment while individual assembly scenes are described by Python `Assembl
 The default task points to the `one_leg` assembly. Other ported FurnitureBench-style scenes are registered as explicit
 task ids and reuse the same environment implementation.
 
+Four optional VT-Refine-style tactile pads cover the R1 Pro gripper fingers. They support policy observations,
+teleoperation pressure visualization, and compliant-contact diagnostics without changing the default task observation
+space.
+
 ## Quick Start
 
 Install the extension in editable mode:
@@ -50,6 +54,7 @@ gets an explicit `Assembly-Benchmark-<Name>-Direct-v0` task id.
 
 - [[Installation]] covers requirements, editable install, and verification.
 - [[Running Tasks|Running-Tasks]] collects smoke tests, preview tools, asset generation, and RL commands.
+- [[Tactile Sensing|Tactile-Sensing]] covers gripper taxels, environment configuration, visualization, and diagnostics.
 - [[Architecture]] explains the spec registry, generated Isaac Lab cfg classes, and runtime environment.
 - [[Adding Assembly Scenes|Adding-Assembly-Scenes]] describes how to add a new assembly spec and validate it.
 - [[FAQ]] covers cameras, default scene behavior, generated USD assets, and current limits.

@@ -13,6 +13,10 @@ from isaaclab.envs import DirectRLEnv
 from isaaclab.utils.math import matrix_from_quat, subtract_frame_transforms
 
 from assembly_benchmark.controllers import BimanualDifferentialIKController
+from assembly_benchmark.sensors import (
+    configure_r1_pro_gripper_tactile_scene_cfg,
+    get_r1_pro_gripper_tactile_points,
+)
 
 from .assembly_benchmark_env_cfg import AssemblyBenchmarkEnvCfg
 
@@ -43,9 +47,8 @@ class AssemblyBenchmarkEnv(DirectRLEnv):
 
     cfg: AssemblyBenchmarkEnvCfg
 
-    def __init__(
-        self, cfg: AssemblyBenchmarkEnvCfg, render_mode: str | None = None, **kwargs
-    ):
+    def __init__(self, cfg: AssemblyBenchmarkEnvCfg, render_mode: str | None = None, **kwargs):
+        configure_r1_pro_gripper_tactile_scene_cfg(cfg)
         super().__init__(cfg, render_mode, **kwargs)
 
         self.controller = BimanualDifferentialIKController(
@@ -99,25 +102,17 @@ class AssemblyBenchmarkEnv(DirectRLEnv):
 
     def _setup_scene(self) -> None:
         self.robot = self.scene["robot"]
-        self.assembly_parts_by_name = {
-            name: self.scene[name] for name in self.cfg.assembly_part_names
-        }
+        self.assembly_parts_by_name = {name: self.scene[name] for name in self.cfg.assembly_part_names}
         self.assembly_reset_parts = tuple(
-            self.assembly_parts_by_name[name]
-            for name in self.cfg.assembly_reset_part_names
+            self.assembly_parts_by_name[name] for name in self.cfg.assembly_reset_part_names
         )
         self.assembly_observation_parts = tuple(
-            self.assembly_parts_by_name[name]
-            for name in self.cfg.assembly_observation_part_names
+            self.assembly_parts_by_name[name] for name in self.cfg.assembly_observation_part_names
         )
         for name, part in self.assembly_parts_by_name.items():
             setattr(self, name, part)
-        self.assembly_parent_part = self.assembly_parts_by_name[
-            self.cfg.assembly_parent_part_name
-        ]
-        self.assembly_child_part = self.assembly_parts_by_name[
-            self.cfg.assembly_child_part_name
-        ]
+        self.assembly_parent_part = self.assembly_parts_by_name[self.cfg.assembly_parent_part_name]
+        self.assembly_child_part = self.assembly_parts_by_name[self.cfg.assembly_child_part_name]
         self.sim.set_camera_view(eye=(2.2, 1.6, 1.7), target=(0.65, 0.0, 0.9))
 
     def _pre_physics_step(self, actions: torch.Tensor) -> None:
@@ -129,19 +124,25 @@ class AssemblyBenchmarkEnv(DirectRLEnv):
 
     def _get_observations(self) -> dict:
         left_ee_pose_b, right_ee_pose_b = self._get_ee_poses_in_root_frame()
-        assembly_part_poses = [
-            self._object_pose_in_env_frame(part) for part in self.assembly_observation_parts
-        ]
+        assembly_part_poses = [self._object_pose_in_env_frame(part) for part in self.assembly_observation_parts]
         target_poses = self.assembled_target_poses.flatten().repeat(self.num_envs, 1)
+        observation_terms = [
+            self.robot.data.joint_pos[:, self.controlled_joint_ids],
+            self.robot.data.joint_vel[:, self.controlled_joint_ids],
+            left_ee_pose_b,
+            right_ee_pose_b,
+            *assembly_part_poses,
+            target_poses,
+        ]
+        if self.cfg.append_r1_pro_gripper_tactile_to_policy:
+            tactile_points = get_r1_pro_gripper_tactile_points(
+                self.scene,
+                normalize=True,
+                env_origins=self.scene.env_origins,
+            )
+            observation_terms.append(tactile_points.reshape(self.num_envs, -1))
         obs = torch.cat(
-            (
-                self.robot.data.joint_pos[:, self.controlled_joint_ids],
-                self.robot.data.joint_vel[:, self.controlled_joint_ids],
-                left_ee_pose_b,
-                right_ee_pose_b,
-                *assembly_part_poses,
-                target_poses,
-            ),
+            observation_terms,
             dim=-1,
         )
         return {"policy": obs}

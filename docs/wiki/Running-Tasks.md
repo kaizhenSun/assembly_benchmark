@@ -99,6 +99,46 @@ python scripts/tools/run_r1_pro_keyboard_teleop.py \
   --num_envs 1 --device cuda:0 --enable_cameras
 ```
 
+Keyboard teleoperation requires a GUI and supports only one environment. The four-panel R1 Pro gripper tactile pressure
+view is enabled by default. Disable it when tactile visualization is not needed:
+
+```bash
+python scripts/tools/run_r1_pro_keyboard_teleop.py \
+  --num_envs 1 --device cuda:0 --enable_cameras \
+  --disable_tactile_pressure_view
+```
+
+By default, the pressure panel normalizes every frame. Use a positive raw-force scale, change the refresh interval, or
+move and rotate the panel with:
+
+```bash
+python scripts/tools/run_r1_pro_keyboard_teleop.py \
+  --num_envs 1 --device cuda:0 --enable_cameras \
+  --tactile_pressure_scale 1.0 \
+  --tactile_pressure_update_interval 2 \
+  --tactile_3d_origin 0.90 -0.45 0.775 \
+  --tactile_3d_yaw 0.0
+```
+
+See [[Tactile Sensing|Tactile-Sensing]] for all visualization options and tactile data conventions.
+
+## Tactile Contact Diagnostics
+
+Compare rigid contact with both supported compliant-material authoring paths:
+
+```bash
+python scripts/diagnostics/run_compliant_contact_diagnostic.py --headless --device cuda:0
+```
+
+Also run the comparison with an assembly-part SDF collider:
+
+```bash
+python scripts/diagnostics/run_compliant_contact_diagnostic.py \
+  --headless --device cuda:0 --include_sdf --sdf_asset path/to/contact_part.usd
+```
+
+The SDF mode requires an existing USD asset. The diagnostic exits nonzero when its compliant-contact checks fail.
+
 ## RL Backends
 
 Train with RSL-RL:

@@ -10,6 +10,7 @@ AssemblySpec
   -> make_assembly_scene_cfg_class()
   -> make_assembly_env_cfg_class()
   -> Gym task registration
+  -> optional gripper tactile scene injection
   -> AssemblyBenchmarkEnv runtime
 ```
 
@@ -96,6 +97,7 @@ This keeps Isaac Lab's standard cfg entry point flow while avoiding one environm
 - applies the 16D action format for both arms and grippers
 - resets the robot and resettable parts
 - builds policy observations
+- optionally reads and appends normalized gripper tactile arrays
 - computes sparse reward, success, and done from the primary relation
 
 The environment does not generate USD assets, decide which parts a scene contains, run scripted assembly state machines,
@@ -114,3 +116,26 @@ reward = rew_scale_success * success
 
 `success` is computed from the primary relation by comparing the current child pose in the parent frame against all
 target poses.
+
+## Tactile Sensor Integration
+
+`assembly_benchmark.sensors` provides the VT-Refine-style sensor implementation, R1 Pro tactile-pad metadata, scene
+configuration helpers, and force-grid utilities. Each of the four finger pads uses a `12 x 32` taxel grid. Every taxel
+contains `[x, y, z, normal_force]`.
+
+`AssemblyBenchmarkEnv` calls `configure_r1_pro_gripper_tactile_scene_cfg(cfg)` before the base environment constructs
+the Isaac Lab scene. The following environment cfg fields control this path:
+
+- `enable_r1_pro_gripper_tactile`: inject the four sensors without changing policy observations.
+- `r1_pro_gripper_tactile_contact_part_names`: restrict SDF contact targets by assembly scene key; an empty tuple uses
+  all resettable assembly parts.
+- `append_r1_pro_gripper_tactile_to_policy`: inject the sensors, append normalized tactile points, and add 6144 values
+  to `observation_space`.
+
+Contact targets must contain PhysX SDF mesh colliders because the sensor evaluates penetration and gradients at each
+taxel. The four tactile pad colliders and their compliant materials are part of the generated R1 Pro asset.
+
+The table-mounted tactile pad and sensor use the same sensor class but a separate helper path.
+`configure_table_tactile_scene_cfg()` must be called explicitly before scene construction; the generic environment does
+not inject table tactile entities or append table tactile data to policy observations. See
+[[Tactile Sensing|Tactile-Sensing]] for usage and limitations.

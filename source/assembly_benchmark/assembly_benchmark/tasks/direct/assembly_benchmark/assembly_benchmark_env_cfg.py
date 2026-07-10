@@ -13,11 +13,12 @@ from isaaclab.sensors import CameraCfg
 from isaaclab.sim import SimulationCfg
 from isaaclab.utils import configclass
 
-from assembly_benchmark.assets.furniture.lab_table import LAB_TABLE_SURFACE_Z, make_lab_table_cfg
 from assembly_benchmark.assembly import available_assemblies, make_assembly
 from assembly_benchmark.assembly.isaac import make_assembly_part_cfg
 from assembly_benchmark.assembly.specs import AssemblySpec
+from assembly_benchmark.assets.furniture.lab_table import LAB_TABLE_SURFACE_Z, make_lab_table_cfg
 from assembly_benchmark.robots.r1_pro import (
+    R1_PRO_CFG,
     R1_PRO_LEFT_ARM_JOINT_NAMES,
     R1_PRO_LEFT_EE_LINK_NAME,
     R1_PRO_LEFT_GRIPPER_JOINT_NAMES,
@@ -27,9 +28,7 @@ from assembly_benchmark.robots.r1_pro import (
     R1_PRO_RIGHT_GRIPPER_JOINT_NAMES,
     R1_PRO_RIGHT_IK_LINK_NAME,
     R1_PRO_TORSO_JOINT_NAMES,
-    R1_PRO_CFG,
 )
-
 
 DEFAULT_ASSEMBLY_NAME = "one_leg"
 DEFAULT_NUM_ENVS = 16
@@ -115,18 +114,13 @@ class AssemblyBenchmarkBaseSceneCfg(InteractiveSceneCfg):
     lab_table = make_lab_table_cfg()
 
 
-def make_assembly_scene_cfg_class(
-    assembly: AssemblySpec, class_name: str
-) -> type[AssemblyBenchmarkBaseSceneCfg]:
+def make_assembly_scene_cfg_class(assembly: AssemblySpec, class_name: str) -> type[AssemblyBenchmarkBaseSceneCfg]:
     """Create an Isaac Lab scene cfg class by injecting assembly parts into the base scene."""
     existing_class = globals().get(class_name)
     if existing_class is not None:
         return existing_class
 
-    annotations = {
-        part.scene_key: AssetBaseCfg | RigidObjectCfg
-        for part in assembly.parts
-    }
+    annotations = {part.scene_key: AssetBaseCfg | RigidObjectCfg for part in assembly.parts}
     attrs = {
         "__module__": __name__,
         "__doc__": f"Scene cfg for the '{assembly.name}' assembly benchmark variant.",
@@ -183,14 +177,18 @@ class AssemblyBenchmarkEnvCfg(DirectRLEnvCfg):
     gripper_max = 0.05
     include_torso_in_ik = True
 
+    enable_table_tactile = False
+    table_tactile_contact_part_names = ()
+    enable_r1_pro_gripper_tactile = False
+    r1_pro_gripper_tactile_contact_part_names = ()
+    append_r1_pro_gripper_tactile_to_policy = False
+
     assembled_pos_threshold = (0.010, 0.005, 0.010)
     assembled_ori_bound = 0.94
     rew_scale_success = 1.0
 
 
-def make_assembly_env_cfg_class(
-    assembly_name: str, class_name: str
-) -> type[AssemblyBenchmarkEnvCfg]:
+def make_assembly_env_cfg_class(assembly_name: str, class_name: str) -> type[AssemblyBenchmarkEnvCfg]:
     """Create an Isaac Lab env cfg class for a registered assembly."""
     existing_class = globals().get(class_name)
     if existing_class is not None:
