@@ -2,7 +2,7 @@
 
 `Assembly-Benchmark-Direct-v0` runs the default `one_leg` scene. Use
 `Assembly-Benchmark-<Name>-Direct-v0` for a specific registered assembly. Generic runners require
-`--enable_cameras` because the shared scene includes an RGB work camera.
+`--enable_cameras` because the shared scene includes an RGB work camera and the R1 Pro head RGB-D/semantic camera.
 
 For example, `one_leg` is exposed as `Assembly-Benchmark-OneLeg-Direct-v0`. Use `scripts/list_envs.py` after
 installation to see the exact ids currently registered by the package.
@@ -61,6 +61,9 @@ Run the `one_leg` scripted assembly demo:
 python scripts/tools/run_r1_pro_one_leg_scripted_assembly.py \
   --num_envs 1 --device cuda:0 --enable_cameras
 ```
+
+Add `--record_camera --camera_name head_camera` to record the R1 Pro head RGB view. See
+[[Camera Sensing|Camera-Sensing]] for the RGB-D tensor interface and native-resolution performance considerations.
 
 Run keyboard teleoperation:
 

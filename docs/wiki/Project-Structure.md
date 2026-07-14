@@ -12,7 +12,7 @@ source/assembly_benchmark/
     tasks/direct/assembly_benchmark/  # generated scene/env cfgs, Gym registration, runtime environment, RL cfgs
     robots/                           # R1 Pro articulation configuration and joint/link constants
     controllers/                      # bimanual joint-position and Differential IK controllers
-    sensors/                          # VT-Refine-style tactile sensor and scene configuration helpers
+    sensors/                          # R1 Pro RGB-D/semantic and VT-Refine tactile sensor configuration helpers
     assets/
       furniture/                      # assembly URDF, mesh, tag, and generated USD assets
       robots/r1_pro/                  # R1 Pro URDF, meshes, and generated fixed-base USD
@@ -45,6 +45,7 @@ AssemblySpec in assembly/<name>.py
   -> task __init__.py registers default and explicit Gym task ids
   -> AssemblyBenchmarkEnv creates the scene and runtime state
   -> R1 Pro controller applies actions
+  -> head RGB-D/semantic camera exposes scene sensor tensors
   -> optional tactile sensors extend scene data and policy observations
 ```
 
@@ -74,6 +75,7 @@ class.
   settings.
 - `controllers/r1_pro.py` maps the 16D bimanual action to arm, gripper, and optional torso joint targets through
   Differential IK.
+- `sensors/r1_pro_camera.py` defines the R1 Pro head-camera metadata and creates its vectorized RGB-D/semantic sensor.
 - `sensors/vt_refine_tactile.py` builds the four tactile arrays from SDF contact geometry and exposes optional policy
   observations.
 
@@ -106,7 +108,7 @@ The main script groups are:
 The tests mirror the public contracts:
 
 - assembly registry, parts, relations, reset lists, observation lists, and asset paths;
-- R1 Pro configuration and gripper defaults;
+- R1 Pro configuration, head-camera metadata, and gripper defaults;
 - tactile tensor helpers, scene injection, USD materials, and pad assets.
 
 Dependency-light tests run without Isaac Sim. Runtime-specific tests use skip markers when simulator modules are not
@@ -120,6 +122,7 @@ available. Wiki source is maintained beside the code and synchronized by `.githu
 | Change observations, rewards, resets, or success | `tasks/direct/assembly_benchmark/` |
 | Change R1 Pro links or actuators | `robots/r1_pro.py`, `assets/robots/r1_pro/` |
 | Change action-to-joint control | `controllers/r1_pro.py` |
+| Change R1 Pro head-camera parameters | `sensors/r1_pro_camera.py` |
 | Change tactile computation or configuration | `sensors/`, `assets/sensors/` |
 | Add a runnable workflow | `scripts/` |
 | Change an RL backend configuration | task `agents/` plus the matching `scripts/<backend>/` wrapper |
