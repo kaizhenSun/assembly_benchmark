@@ -29,6 +29,7 @@ from assembly_benchmark.robots.r1_pro import (
     R1_PRO_RIGHT_IK_LINK_NAME,
     R1_PRO_TORSO_JOINT_NAMES,
 )
+from assembly_benchmark.sensors import make_r1_pro_head_camera_cfg
 
 DEFAULT_ASSEMBLY_NAME = "one_leg"
 DEFAULT_NUM_ENVS = 16
@@ -80,7 +81,7 @@ class AssemblyBenchmarkBaseSceneCfg(InteractiveSceneCfg):
 
     ground = AssetBaseCfg(
         prim_path="/World/defaultGroundPlane",
-        spawn=sim_utils.GroundPlaneCfg(),
+        spawn=sim_utils.GroundPlaneCfg(semantic_tags=[("class", "ground")]),
         init_state=AssetBaseCfg.InitialStateCfg(pos=(0.0, 0.0, 0.0)),
     )
 
@@ -110,6 +111,9 @@ class AssemblyBenchmarkBaseSceneCfg(InteractiveSceneCfg):
         ),
     )
     """RGB work camera for scene-level monitoring; videos are recorded through Gym RecordVideo."""
+
+    head_camera = make_r1_pro_head_camera_cfg()
+    """R1 Pro head-mounted RGB-D and semantic camera at the midpoint of the physical stereo pair."""
 
     lab_table = make_lab_table_cfg()
 

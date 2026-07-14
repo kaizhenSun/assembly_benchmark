@@ -51,6 +51,7 @@ R1_PRO_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
         usd_path=str(R1_PRO_USD_PATH),
         activate_contact_sensors=False,
+        semantic_tags=[("class", "robot")],
         # NOTE:
         # 关闭机器人本体重力可以让位置控制/IK 遥操作更容易稳定：
         # 各 link 不会因自重下垂，隐式关节执行器不需要额外重力补偿或更仔细的增益调参，

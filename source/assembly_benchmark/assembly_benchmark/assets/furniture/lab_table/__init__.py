@@ -14,5 +14,8 @@ LAB_TABLE_SURFACE_Z = 0.775
 def make_lab_table_cfg(prim_path: str = "{ENV_REGEX_NS}/LabTable") -> AssetBaseCfg:
     return AssetBaseCfg(
         prim_path=prim_path,
-        spawn=sim_utils.UsdFileCfg(usd_path=str(LAB_TABLE_USD_PATH)),
+        spawn=sim_utils.UsdFileCfg(
+            usd_path=str(LAB_TABLE_USD_PATH),
+            semantic_tags=[("class", "lab_table")],
+        ),
     )

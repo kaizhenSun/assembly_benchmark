@@ -13,9 +13,7 @@ from isaaclab.assets import AssetBaseCfg, RigidObjectCfg
 from .specs import AssemblyPartSpec, AssemblySpec
 
 
-def make_assembly_part_spawn_cfg(
-    assembly: AssemblySpec, part: AssemblyPartSpec
-) -> sim_utils.UsdFileCfg:
+def make_assembly_part_spawn_cfg(assembly: AssemblySpec, part: AssemblyPartSpec) -> sim_utils.UsdFileCfg:
     """Create a USD spawn config for an assembly part."""
     usd_path = str(part.usd_path(assembly.asset_root))
     mass_props = None
@@ -25,10 +23,14 @@ def make_assembly_part_spawn_cfg(
         mass_props = sim_utils.MassPropertiesCfg(density=part.density)
 
     if part.body_type == "visual":
-        return sim_utils.UsdFileCfg(usd_path=usd_path)
+        return sim_utils.UsdFileCfg(
+            usd_path=usd_path,
+            semantic_tags=[("class", part.scene_key)],
+        )
     if part.body_type == "static":
         return sim_utils.UsdFileCfg(
             usd_path=usd_path,
+            semantic_tags=[("class", part.scene_key)],
             rigid_props=sim_utils.RigidBodyPropertiesCfg(
                 disable_gravity=True,
                 max_depenetration_velocity=5.0,
@@ -37,6 +39,7 @@ def make_assembly_part_spawn_cfg(
     if part.body_type == "dynamic":
         return sim_utils.UsdFileCfg(
             usd_path=usd_path,
+            semantic_tags=[("class", part.scene_key)],
             rigid_props=sim_utils.RigidBodyPropertiesCfg(
                 disable_gravity=False,
                 max_depenetration_velocity=5.0,
