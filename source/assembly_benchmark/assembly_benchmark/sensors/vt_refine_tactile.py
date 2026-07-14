@@ -978,9 +978,7 @@ def configure_table_tactile_scene_cfg(cfg: Any) -> tuple[str, ...]:
 
 def configure_r1_pro_gripper_tactile_scene_cfg(cfg: Any) -> tuple[str, ...]:
     """Inject R1 Pro gripper tactile sensors if the env cfg enables them."""
-    enabled = getattr(cfg, "enable_r1_pro_gripper_tactile", False)
-    append = getattr(cfg, "append_r1_pro_gripper_tactile_to_policy", False)
-    if not enabled and not append:
+    if not getattr(cfg, "enable_r1_pro_gripper_tactile", False):
         return ()
 
     contact_part_names = resolve_tactile_contact_part_names(
@@ -998,9 +996,6 @@ def configure_r1_pro_gripper_tactile_scene_cfg(cfg: Any) -> tuple[str, ...]:
             make_r1_pro_gripper_tactile_sensor_cfg(contact_prim_paths, pad_spec),
         )
 
-    if append and not getattr(cfg, "_r1_pro_gripper_tactile_observation_space_added", False):
-        cfg.observation_space += R1_PRO_GRIPPER_TACTILE_OBSERVATION_SIZE
-        cfg._r1_pro_gripper_tactile_observation_space_added = True
     return contact_part_names
 
 

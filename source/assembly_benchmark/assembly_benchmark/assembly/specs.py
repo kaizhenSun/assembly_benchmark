@@ -12,7 +12,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-
 Quat = tuple[float, float, float, float]
 Vec3 = tuple[float, float, float]
 PartBodyType = Literal["visual", "static", "dynamic"]
@@ -37,7 +36,6 @@ class AssemblyPartSpec:
     body_type: PartBodyType
     mass: float | None = None
     density: float | None = None
-    observe: bool = False
     reset: bool = True
     tag_ids: tuple[int, ...] = ()
     reset_footprint_xy: tuple[float, float] | None = None
@@ -67,7 +65,6 @@ def make_part(
     body_type: PartBodyType,
     mass: float | None = None,
     density: float | None = None,
-    observe: bool = False,
     reset: bool = True,
     tag_ids: tuple[int, ...] = (),
     reset_footprint_xy: tuple[float, float] | None = None,
@@ -83,7 +80,6 @@ def make_part(
         body_type=body_type,
         mass=mass,
         density=density,
-        observe=observe,
         reset=reset,
         tag_ids=tag_ids,
         reset_footprint_xy=reset_footprint_xy,
@@ -196,8 +192,7 @@ def make_relation(
         target_poses = tuple(AssemblyTargetPose(pos=pos) for pos in target_positions)
     else:
         target_poses = tuple(
-            AssemblyTargetPose(pos=pos, quat=quat)
-            for pos, quat in zip(target_positions, target_quats, strict=True)
+            AssemblyTargetPose(pos=pos, quat=quat) for pos, quat in zip(target_positions, target_quats, strict=True)
         )
 
     return AssemblyRelationSpec(
@@ -265,13 +260,9 @@ class AssemblySpec:
         part_name_set = set(part_names)
         for relation in self.assembly_relations:
             if relation.parent not in part_name_set:
-                raise ValueError(
-                    f"Assembly '{self.name}' relation parent '{relation.parent}' is not a declared part."
-                )
+                raise ValueError(f"Assembly '{self.name}' relation parent '{relation.parent}' is not a declared part.")
             if relation.child not in part_name_set:
-                raise ValueError(
-                    f"Assembly '{self.name}' relation child '{relation.child}' is not a declared part."
-                )
+                raise ValueError(f"Assembly '{self.name}' relation child '{relation.child}' is not a declared part.")
             if not relation.target_poses:
                 raise ValueError(
                     f"Assembly '{self.name}' relation '{relation.parent}->{relation.child}' has no target poses."
@@ -286,11 +277,6 @@ class AssemblySpec:
     def part_names(self) -> tuple[str, ...]:
         """Return all part scene keys in declaration order."""
         return tuple(part.scene_key for part in self.parts)
-
-    @property
-    def observation_part_names(self) -> tuple[str, ...]:
-        """Return dynamic parts included in policy observations."""
-        return tuple(part.scene_key for part in self.parts if part.observe)
 
     @property
     def reset_part_names(self) -> tuple[str, ...]:

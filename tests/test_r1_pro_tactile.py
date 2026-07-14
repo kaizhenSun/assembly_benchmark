@@ -265,10 +265,9 @@ def test_r1_pro_gripper_tactile_observation_normalizes_each_pad_then_concatenate
         assert sensors[spec.sensor_name].calls == [(True, env_origins)]
 
 
-def _fake_env_cfg(*, append_to_policy: bool = False) -> SimpleNamespace:
+def _fake_env_cfg() -> SimpleNamespace:
     return SimpleNamespace(
-        enable_r1_pro_gripper_tactile=not append_to_policy,
-        append_r1_pro_gripper_tactile_to_policy=append_to_policy,
+        enable_r1_pro_gripper_tactile=True,
         r1_pro_gripper_tactile_contact_part_names=(),
         assembly_reset_part_names=("resettable_part_a", "resettable_part_b"),
         assembly_part_names=("fixed_part", "resettable_part_a", "resettable_part_b"),
@@ -307,19 +306,3 @@ def test_r1_pro_gripper_tactile_scene_injection_uses_registry_and_resettable_par
         assert sensor_cfg.pad_spec is pad_spec
         assert sensor_cfg.contact_prim_paths_expr == expected_contact_paths
     assert cfg.observation_space == 100
-
-
-def test_r1_pro_gripper_tactile_scene_injection_adds_policy_space_once(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        tactile_module,
-        "make_r1_pro_gripper_tactile_sensor_cfg",
-        lambda contact_prim_paths_expr, pad_spec, **_: SimpleNamespace(
-            contact_prim_paths_expr=tuple(contact_prim_paths_expr), pad_spec=pad_spec
-        ),
-    )
-    cfg = _fake_env_cfg(append_to_policy=True)
-
-    tactile_module.configure_r1_pro_gripper_tactile_scene_cfg(cfg)
-    tactile_module.configure_r1_pro_gripper_tactile_scene_cfg(cfg)
-
-    assert cfg.observation_space == 100 + R1_PRO_GRIPPER_TACTILE_OBSERVATION_SIZE

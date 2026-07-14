@@ -11,7 +11,7 @@ gripper fingers.
 - Explicit Gym task ids for every registered assembly.
 - Assembly target-pose preview, scripted assembly, and keyboard teleoperation tools.
 - Training and playback entry points for common RL backends.
-- Optional gripper tactile observations and pressure visualization.
+- Optional gripper tactile sensing and pressure visualization.
 
 ## Assemblies
 

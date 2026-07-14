@@ -666,7 +666,6 @@ def _configure_tactile_view_env_cfg(env_cfg) -> None:
         return
 
     env_cfg.enable_r1_pro_gripper_tactile = True
-    env_cfg.append_r1_pro_gripper_tactile_to_policy = False
 
 
 def main() -> int:
@@ -683,7 +682,6 @@ def main() -> int:
             raise RuntimeError(f"Task '{args_cli.task}' does not expose R1 Pro torso IK configuration.")
         if not task_has_torso_ik:
             env_cfg.include_torso_in_ik = True
-            env_cfg.observation_space += 2 * len(env_cfg.torso_joint_names)
     effective_torso_ik = bool(getattr(env_cfg, "include_torso_in_ik", False))
     if args_cli.enable_torso_keys and effective_torso_ik:
         raise RuntimeError(

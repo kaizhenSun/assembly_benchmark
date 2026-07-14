@@ -13,10 +13,7 @@ from isaaclab.envs import DirectRLEnv
 from isaaclab.utils.math import matrix_from_quat, subtract_frame_transforms
 
 from assembly_benchmark.controllers import BimanualDifferentialIKController
-from assembly_benchmark.sensors import (
-    configure_r1_pro_gripper_tactile_scene_cfg,
-    get_r1_pro_gripper_tactile_points,
-)
+from assembly_benchmark.sensors import configure_r1_pro_gripper_tactile_scene_cfg
 
 from .assembly_benchmark_env_cfg import AssemblyBenchmarkEnvCfg
 
@@ -71,6 +68,7 @@ class AssemblyBenchmarkEnv(DirectRLEnv):
         )
 
         self.controlled_joint_ids = self.controller.joint_ids
+        self.arm_joint_ids = self.controller.arm_joint_ids
         self.left_ee_body_idx = self.robot.find_bodies(self.cfg.left_ee_link_name)[0][0]
         self.right_ee_body_idx = self.robot.find_bodies(self.cfg.right_ee_link_name)[0][0]
         self.actions = torch.zeros((self.num_envs, self.cfg.action_space), device=self.device)
@@ -99,15 +97,17 @@ class AssemblyBenchmarkEnv(DirectRLEnv):
                 "AssemblyBenchmark whole-body IK expected 22 controlled joints "
                 f"(torso + both arms + both grippers), got {len(self.controlled_joint_ids)}."
             )
+        expected_arm_joint_count = len(self.cfg.left_arm_joint_names) + len(self.cfg.right_arm_joint_names)
+        if len(self.arm_joint_ids) != expected_arm_joint_count:
+            raise RuntimeError(
+                f"AssemblyBenchmark expected {expected_arm_joint_count} arm joints, got {len(self.arm_joint_ids)}."
+            )
 
     def _setup_scene(self) -> None:
         self.robot = self.scene["robot"]
         self.assembly_parts_by_name = {name: self.scene[name] for name in self.cfg.assembly_part_names}
         self.assembly_reset_parts = tuple(
             self.assembly_parts_by_name[name] for name in self.cfg.assembly_reset_part_names
-        )
-        self.assembly_observation_parts = tuple(
-            self.assembly_parts_by_name[name] for name in self.cfg.assembly_observation_part_names
         )
         for name, part in self.assembly_parts_by_name.items():
             setattr(self, name, part)
@@ -123,26 +123,11 @@ class AssemblyBenchmarkEnv(DirectRLEnv):
         self.robot.set_joint_position_target(self.joint_targets, joint_ids=self.controlled_joint_ids)
 
     def _get_observations(self) -> dict:
-        left_ee_pose_b, right_ee_pose_b = self._get_ee_poses_in_root_frame()
-        assembly_part_poses = [self._object_pose_in_env_frame(part) for part in self.assembly_observation_parts]
-        target_poses = self.assembled_target_poses.flatten().repeat(self.num_envs, 1)
-        observation_terms = [
-            self.robot.data.joint_pos[:, self.controlled_joint_ids],
-            self.robot.data.joint_vel[:, self.controlled_joint_ids],
-            left_ee_pose_b,
-            right_ee_pose_b,
-            *assembly_part_poses,
-            target_poses,
-        ]
-        if self.cfg.append_r1_pro_gripper_tactile_to_policy:
-            tactile_points = get_r1_pro_gripper_tactile_points(
-                self.scene,
-                normalize=True,
-                env_origins=self.scene.env_origins,
-            )
-            observation_terms.append(tactile_points.reshape(self.num_envs, -1))
         obs = torch.cat(
-            observation_terms,
+            (
+                self.robot.data.joint_pos[:, self.arm_joint_ids],
+                self.robot.data.joint_vel[:, self.arm_joint_ids],
+            ),
             dim=-1,
         )
         return {"policy": obs}
@@ -193,11 +178,6 @@ class AssemblyBenchmarkEnv(DirectRLEnv):
             torch.cat((left_pos_b, left_quat_b), dim=-1),
             torch.cat((right_pos_b, right_quat_b), dim=-1),
         )
-
-    def _object_pose_in_env_frame(self, asset) -> torch.Tensor:
-        pose = asset.data.root_pose_w.clone()
-        pose[:, :3] -= self.scene.env_origins
-        return pose
 
     def _assembled_relative_pose(self) -> tuple[torch.Tensor, torch.Tensor]:
         parent_pose_w = self.assembly_parent_part.data.root_pose_w
