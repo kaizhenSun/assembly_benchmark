@@ -102,8 +102,8 @@ python scripts/rsl_rl/play.py \
 ## Current Task Behavior
 
 - Sparse success evaluates only the assembly's primary relation; full multi-relation completion is not modeled yet.
-- Assembly part poses enter policy observations only when their specs set `observe=True`.
-- Gripper tactile observations are disabled by default.
+- Policy observations contain only the positions and velocities of the 14 arm joints, for a fixed size of 28.
+- Gripper tactile sensing is disabled by default and does not change policy observations when enabled.
 
 ## CPU and USD Debugging
 

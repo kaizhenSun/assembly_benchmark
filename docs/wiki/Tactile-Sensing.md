@@ -7,15 +7,15 @@ returns 384 taxels in the form:
 [x, y, z, normal_force]
 ```
 
-All four pads together return `(num_envs, 1536, 4)`. Tactile sensing and tactile policy observations are disabled in
-the default task configuration.
+All four pads together return `(num_envs, 1536, 4)`. Tactile sensing is disabled in the default task configuration
+and is not appended to policy observations.
 
 ## Data Convention
 
-The sensor API reports taxel positions in the world frame. When tactile arrays are appended to policy observations, the
-environment subtracts each environment origin so positions are local to the corresponding replicated scene.
+The sensor API reports taxel positions in the world frame. Callers may provide environment origins to obtain positions
+local to each replicated scene.
 
-Policy forces are normalized independently for each pad and environment, then clamped to `[0, 1]`. Raw sensor access
+Normalized forces are scaled independently for each pad and environment, then clamped to `[0, 1]`. Raw sensor access
 can keep the unnormalized normal force when absolute magnitudes are needed.
 
 The tactile data path is:
@@ -25,29 +25,26 @@ assembly SDF collider
   -> taxel penetration and surface gradient
   -> normal force field
   -> four pad tensors
-  -> optional normalization and policy concatenation
+  -> optional normalization or visualization
 ```
 
 ## Enable Tactile Sensing
 
-The three environment fields cover the normal configuration cases:
+The two environment fields cover the normal configuration cases:
 
 | Field | Behavior |
 | --- | --- |
 | `enable_r1_pro_gripper_tactile` | Creates all four sensors without changing policy observations. |
-| `append_r1_pro_gripper_tactile_to_policy` | Creates the sensors and appends 6144 normalized values. |
 | `r1_pro_gripper_tactile_contact_part_names` | Restricts contact checks to selected assembly scene keys. |
 
 Example:
 
 ```python
 env_cfg.enable_r1_pro_gripper_tactile = True
-env_cfg.append_r1_pro_gripper_tactile_to_policy = True
 env_cfg.r1_pro_gripper_tactile_contact_part_names = ("square_table_leg4",)
 ```
 
-Appending tactile data adds `4 * 12 * 32 * 4 = 6144` values and updates `observation_space`. Setting only
-`enable_r1_pro_gripper_tactile` leaves the policy observation unchanged.
+Enabling tactile sensing does not change the fixed 28-dimensional policy observation.
 
 By default, tactile sensors check every resettable assembly part. Explicit names must exist in `assembly_part_names`,
 and every contact target must contain a PhysX SDF mesh collider.
@@ -91,4 +88,3 @@ The command exits nonzero when the compliant pads do not soften contact as expec
 - Confirm every configured contact part has an SDF mesh collider.
 - Zero penetration depth produces zero tactile force; inspect the periodic teleoperation diagnostics first.
 - Use a positive `--tactile_pressure_scale` to compare raw magnitudes across frames; use zero for automatic scaling.
-- Keep tactile policy observations disabled when loading a policy trained for the original observation size.

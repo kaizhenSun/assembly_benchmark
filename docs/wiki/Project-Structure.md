@@ -46,7 +46,7 @@ AssemblySpec in assembly/<name>.py
   -> AssemblyBenchmarkEnv creates the scene and runtime state
   -> R1 Pro controller applies actions
   -> head RGB-D/semantic camera exposes scene sensor tensors
-  -> optional tactile sensors extend scene data and policy observations
+  -> optional tactile sensors expose contact data for diagnostics and visualization
 ```
 
 All registered assemblies share this path. A new scene normally adds metadata and assets rather than a new environment
@@ -76,8 +76,8 @@ class.
 - `controllers/r1_pro.py` maps the 16D bimanual action to arm, gripper, and optional torso joint targets through
   Differential IK.
 - `sensors/r1_pro_camera.py` defines the R1 Pro head-camera metadata and creates its vectorized RGB-D/semantic sensor.
-- `sensors/vt_refine_tactile.py` builds the four tactile arrays from SDF contact geometry and exposes optional policy
-  observations.
+- `sensors/vt_refine_tactile.py` builds the four tactile arrays from SDF contact geometry for diagnostics and
+  visualization.
 
 ## Assets
 
@@ -107,7 +107,7 @@ The main script groups are:
 
 The tests mirror the public contracts:
 
-- assembly registry, parts, relations, reset lists, observation lists, and asset paths;
+- assembly registry, parts, relations, reset lists, and asset paths;
 - R1 Pro configuration, head-camera metadata, and gripper defaults;
 - tactile tensor helpers, scene injection, USD materials, and pad assets.
 

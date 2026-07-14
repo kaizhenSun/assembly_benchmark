@@ -18,6 +18,7 @@ from assembly_benchmark.assembly.isaac import make_assembly_part_cfg
 from assembly_benchmark.assembly.specs import AssemblySpec
 from assembly_benchmark.assets.furniture.lab_table import LAB_TABLE_SURFACE_Z, make_lab_table_cfg
 from assembly_benchmark.robots.r1_pro import (
+    R1_PRO_ARM_JOINT_NAMES,
     R1_PRO_CFG,
     R1_PRO_LEFT_ARM_JOINT_NAMES,
     R1_PRO_LEFT_EE_LINK_NAME,
@@ -34,15 +35,7 @@ from assembly_benchmark.sensors import make_r1_pro_head_camera_cfg
 DEFAULT_ASSEMBLY_NAME = "one_leg"
 DEFAULT_NUM_ENVS = 16
 DEFAULT_ENV_SPACING = 4.0
-POSE_OBSERVATION_SIZE = 7
-CONTROLLED_JOINT_COUNT = (
-    len(R1_PRO_TORSO_JOINT_NAMES)
-    + len(R1_PRO_LEFT_ARM_JOINT_NAMES)
-    + len(R1_PRO_RIGHT_ARM_JOINT_NAMES)
-    + len(R1_PRO_LEFT_GRIPPER_JOINT_NAMES)
-    + len(R1_PRO_RIGHT_GRIPPER_JOINT_NAMES)
-)
-DEFAULT_OBSERVATION_SPACE = 2 * CONTROLLED_JOINT_COUNT + 6 * POSE_OBSERVATION_SIZE
+ARM_OBSERVATION_SIZE = 2 * len(R1_PRO_ARM_JOINT_NAMES)
 
 
 def _assembly_class_prefix(assembly_name: str) -> str:
@@ -63,16 +56,6 @@ def assembly_env_cfg_class_name(assembly_name: str) -> str:
 def assembly_task_id(assembly_name: str) -> str:
     """Return the explicit Isaac Lab task id for an assembly."""
     return f"Assembly-Benchmark-{_assembly_class_prefix(assembly_name)}-Direct-v0"
-
-
-def assembly_observation_space(assembly: AssemblySpec) -> int:
-    """Return policy observation size for one assembly config."""
-    return (
-        2 * CONTROLLED_JOINT_COUNT
-        + 2 * POSE_OBSERVATION_SIZE
-        + len(assembly.observation_part_names) * POSE_OBSERVATION_SIZE
-        + len(assembly.primary_relation.target_poses) * POSE_OBSERVATION_SIZE
-    )
 
 
 @configclass
@@ -144,7 +127,7 @@ class AssemblyBenchmarkEnvCfg(DirectRLEnvCfg):
     episode_length_s = 50.0
 
     action_space = 16
-    observation_space = DEFAULT_OBSERVATION_SPACE
+    observation_space = ARM_OBSERVATION_SIZE
     state_space = 0
 
     sim: SimulationCfg = SimulationCfg(dt=1 / 240, render_interval=decimation)
@@ -158,7 +141,6 @@ class AssemblyBenchmarkEnvCfg(DirectRLEnvCfg):
     assembly_name = ""
     assembly_part_names = ()
     assembly_reset_part_names = ()
-    assembly_observation_part_names = ()
     assembly_parent_part_name = ""
     assembly_child_part_name = ""
     assembled_target_positions = ()
@@ -185,7 +167,6 @@ class AssemblyBenchmarkEnvCfg(DirectRLEnvCfg):
     table_tactile_contact_part_names = ()
     enable_r1_pro_gripper_tactile = False
     r1_pro_gripper_tactile_contact_part_names = ()
-    append_r1_pro_gripper_tactile_to_policy = False
 
     assembled_pos_threshold = (0.010, 0.005, 0.010)
     assembled_ori_bound = 0.94
@@ -213,11 +194,9 @@ def make_assembly_env_cfg_class(assembly_name: str, class_name: str) -> type[Ass
             env_spacing=DEFAULT_ENV_SPACING,
             replicate_physics=True,
         ),
-        "observation_space": assembly_observation_space(assembly),
         "assembly_name": assembly.name,
         "assembly_part_names": assembly.part_names,
         "assembly_reset_part_names": assembly.reset_part_names,
-        "assembly_observation_part_names": assembly.observation_part_names,
         "assembly_parent_part_name": relation.parent,
         "assembly_child_part_name": relation.child,
         "assembled_target_positions": tuple(target.pos for target in relation.target_poses),
@@ -242,9 +221,8 @@ _install_registered_assembly_cfg_classes()
 __all__ = [
     "AssemblyBenchmarkBaseSceneCfg",
     "AssemblyBenchmarkEnvCfg",
+    "ARM_OBSERVATION_SIZE",
     "DEFAULT_ASSEMBLY_NAME",
-    "DEFAULT_OBSERVATION_SPACE",
-    "assembly_observation_space",
     "assembly_env_cfg_class_name",
     "assembly_scene_cfg_class_name",
     "assembly_task_id",

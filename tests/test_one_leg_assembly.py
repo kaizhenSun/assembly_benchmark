@@ -11,7 +11,6 @@ from math import isclose, sqrt
 from pathlib import Path
 
 import pytest
-
 from assembly_benchmark.assembly import (
     DEFAULT_ORI_BOUND,
     DEFAULT_POS_THRESHOLD,
@@ -32,7 +31,6 @@ from assembly_benchmark.assembly import (
     make_stool_assembly,
     register_assembly,
 )
-
 
 EXPECTED_ASSEMBLIES = (
     "cabinet",
@@ -255,7 +253,7 @@ def test_flat_assembly_module_exports(assembly_name: str) -> None:
     module = importlib.import_module(f"assembly_benchmark.assembly.{assembly_name}")
     factory = getattr(module, f"make_{assembly_name}_assembly")
 
-    assert module.ASSEMBLY_NAME == assembly_name
+    assert assembly_name == module.ASSEMBLY_NAME
     assert module.ASSET_ROOT.name == assembly_name
     assert module.PARTS
     assert module.RELATIONS
@@ -269,8 +267,6 @@ def test_assembly_contract(assembly_name: str) -> None:
     assert assembly.name == assembly_name
     assert assembly.asset_root.name == assembly_name
     assert assembly.part_names[0] == "base_tag"
-    assert assembly.observation_part_names == ()
-    assert all(not part.observe for part in assembly.parts)
 
     scene_keys = [part.scene_key for part in assembly.parts]
     assert len(scene_keys) == len(set(scene_keys))
@@ -315,16 +311,19 @@ def test_assembly_part_order_contract(assembly_name: str) -> None:
 def test_assembly_relation_order_contract(assembly_name: str) -> None:
     assembly = make_assembly(assembly_name)
 
-    assert tuple(
-        (
-            relation.parent,
-            relation.child,
-            relation.default_target_index,
-            len(relation.target_poses),
-            relation.ori_bound,
+    assert (
+        tuple(
+            (
+                relation.parent,
+                relation.child,
+                relation.default_target_index,
+                len(relation.target_poses),
+                relation.ori_bound,
+            )
+            for relation in assembly.assembly_relations
         )
-        for relation in assembly.assembly_relations
-    ) == EXPECTED_RELATIONS[assembly_name]
+        == EXPECTED_RELATIONS[assembly_name]
+    )
 
 
 @pytest.mark.parametrize("assembly_name", EXPECTED_ASSEMBLIES)
