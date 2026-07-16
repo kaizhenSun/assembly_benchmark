@@ -4,11 +4,6 @@
      For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
 <robot
   name="r1_pro_with_gripper">
-  <material
-    name="r1_pro_tactile_pad_visual">
-    <color
-      rgba="0.42 0.18 0.07 1.0" />
-  </material>
   <link
     name="base_link">
     <inertial>
@@ -1199,56 +1194,6 @@
       velocity="0.25" />
   </joint>
   <link
-    name="left_gripper_tactile_pad1">
-    <inertial>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
-      <mass
-        value="0.001" />
-      <inertia
-        ixx="1e-7"
-        ixy="0"
-        ixz="0"
-        iyy="1e-7"
-        iyz="0"
-        izz="1e-7" />
-    </inertial>
-    <visual>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
-      <geometry>
-        <mesh
-          filename="../../sensors/vt_refine_tactile/r1_pro_gripper_finger_link1_flat_pad.STL" />
-      </geometry>
-      <material
-        name="r1_pro_tactile_pad_visual" />
-    </visual>
-    <collision>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
-      <geometry>
-        <mesh
-          filename="../../sensors/vt_refine_tactile/r1_pro_gripper_finger_link1_flat_pad.STL" />
-      </geometry>
-    </collision>
-  </link>
-  <joint
-    name="left_gripper_tactile_pad1_joint"
-    type="fixed">
-    <origin
-      xyz="0 0 0"
-      rpy="0 0 0" />
-    <parent
-      link="left_gripper_finger_link1" />
-    <child
-      link="left_gripper_tactile_pad1" />
-    <axis
-      xyz="0 0 0" />
-  </joint>
-  <link
     name="left_gripper_finger_link2">
     <inertial>
       <origin
@@ -1301,56 +1246,6 @@
       upper="0.05"
       effort="100"
       velocity="0.25" />
-  </joint>
-  <link
-    name="left_gripper_tactile_pad2">
-    <inertial>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
-      <mass
-        value="0.001" />
-      <inertia
-        ixx="1e-7"
-        ixy="0"
-        ixz="0"
-        iyy="1e-7"
-        iyz="0"
-        izz="1e-7" />
-    </inertial>
-    <visual>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
-      <geometry>
-        <mesh
-          filename="../../sensors/vt_refine_tactile/r1_pro_gripper_finger_link2_flat_pad.STL" />
-      </geometry>
-      <material
-        name="r1_pro_tactile_pad_visual" />
-    </visual>
-    <collision>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
-      <geometry>
-        <mesh
-          filename="../../sensors/vt_refine_tactile/r1_pro_gripper_finger_link2_flat_pad.STL" />
-      </geometry>
-    </collision>
-  </link>
-  <joint
-    name="left_gripper_tactile_pad2_joint"
-    type="fixed">
-    <origin
-      xyz="0 0 0"
-      rpy="0 0 0" />
-    <parent
-      link="left_gripper_finger_link2" />
-    <child
-      link="left_gripper_tactile_pad2" />
-    <axis
-      xyz="0 0 0" />
   </joint>
   <link
     name="right_arm_base_link">
@@ -1932,56 +1827,6 @@
       velocity="0.25" />
   </joint>
   <link
-    name="right_gripper_tactile_pad1">
-    <inertial>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
-      <mass
-        value="0.001" />
-      <inertia
-        ixx="1e-7"
-        ixy="0"
-        ixz="0"
-        iyy="1e-7"
-        iyz="0"
-        izz="1e-7" />
-    </inertial>
-    <visual>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
-      <geometry>
-        <mesh
-          filename="../../sensors/vt_refine_tactile/r1_pro_gripper_finger_link1_flat_pad.STL" />
-      </geometry>
-      <material
-        name="r1_pro_tactile_pad_visual" />
-    </visual>
-    <collision>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
-      <geometry>
-        <mesh
-          filename="../../sensors/vt_refine_tactile/r1_pro_gripper_finger_link1_flat_pad.STL" />
-      </geometry>
-    </collision>
-  </link>
-  <joint
-    name="right_gripper_tactile_pad1_joint"
-    type="fixed">
-    <origin
-      xyz="0 0 0"
-      rpy="0 0 0" />
-    <parent
-      link="right_gripper_finger_link1" />
-    <child
-      link="right_gripper_tactile_pad1" />
-    <axis
-      xyz="0 0 0" />
-  </joint>
-  <link
     name="right_gripper_finger_link2">
     <inertial>
       <origin
@@ -2034,55 +1879,5 @@
       upper="0.05"
       effort="100"
       velocity="0.25" />
-  </joint>
-  <link
-    name="right_gripper_tactile_pad2">
-    <inertial>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
-      <mass
-        value="0.001" />
-      <inertia
-        ixx="1e-7"
-        ixy="0"
-        ixz="0"
-        iyy="1e-7"
-        iyz="0"
-        izz="1e-7" />
-    </inertial>
-    <visual>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
-      <geometry>
-        <mesh
-          filename="../../sensors/vt_refine_tactile/r1_pro_gripper_finger_link2_flat_pad.STL" />
-      </geometry>
-      <material
-        name="r1_pro_tactile_pad_visual" />
-    </visual>
-    <collision>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
-      <geometry>
-        <mesh
-          filename="../../sensors/vt_refine_tactile/r1_pro_gripper_finger_link2_flat_pad.STL" />
-      </geometry>
-    </collision>
-  </link>
-  <joint
-    name="right_gripper_tactile_pad2_joint"
-    type="fixed">
-    <origin
-      xyz="0 0 0"
-      rpy="0 0 0" />
-    <parent
-      link="right_gripper_finger_link2" />
-    <child
-      link="right_gripper_tactile_pad2" />
-    <axis
-      xyz="0 0 0" />
   </joint>
 </robot>

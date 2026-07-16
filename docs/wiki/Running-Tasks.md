@@ -72,8 +72,7 @@ python scripts/tools/run_r1_pro_keyboard_teleop.py \
   --num_envs 1 --device cuda:0 --enable_cameras
 ```
 
-Keyboard teleoperation requires a GUI and supports one environment. Its tactile pressure view is enabled by default;
-see [[Tactile Sensing|Tactile-Sensing]] for controls.
+Keyboard teleoperation requires a GUI and supports one environment.
 
 The separate `run_r1_pro_diff_ik.py` and `run_r1_pro_joint_response_diagnostic.py` tools help inspect controller targets
 and low-level actuator response without running an RL policy.
@@ -103,7 +102,6 @@ python scripts/rsl_rl/play.py \
 
 - Sparse success evaluates only the assembly's primary relation; full multi-relation completion is not modeled yet.
 - Policy observations contain only the positions and velocities of the 14 arm joints, for a fixed size of 28.
-- Gripper tactile sensing is disabled by default and does not change policy observations when enabled.
 
 ## CPU and USD Debugging
 

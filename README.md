@@ -1,8 +1,7 @@
 # Assembly Benchmark
 
 Assembly Benchmark is an Isaac Lab extension for R1 Pro assembly-task experiments. It provides a generic direct RL
-environment, spec-driven assembly scenes, task utilities, and optional tactile sensing on all four gripper fingers.
-The default task uses the `one_leg` assembly.
+environment, spec-driven assembly scenes, and task utilities. The default task uses the `one_leg` assembly.
 
 ## Documentation Structure
 
@@ -13,5 +12,4 @@ This README provides the project overview and links. The canonical user guides a
 - [Home](docs/wiki/Home.md) — project scope, features, and supported assemblies.
 - [Installation](docs/wiki/Installation.md) — requirements, installation, and verification.
 - [Running Tasks](docs/wiki/Running-Tasks.md) — task launch, tools, assets, and RL commands.
-- [Tactile Sensing](docs/wiki/Tactile-Sensing.md) — gripper tactile configuration and visualization.
 - [Project Structure](docs/wiki/Project-Structure.md) — source layout, runtime flow, scripts, and tests.

@@ -163,11 +163,6 @@ class AssemblyBenchmarkEnvCfg(DirectRLEnvCfg):
     gripper_max = 0.05
     include_torso_in_ik = True
 
-    enable_table_tactile = False
-    table_tactile_contact_part_names = ()
-    enable_r1_pro_gripper_tactile = False
-    r1_pro_gripper_tactile_contact_part_names = ()
-
     assembled_pos_threshold = (0.010, 0.005, 0.010)
     assembled_ori_bound = 0.94
     rew_scale_success = 1.0

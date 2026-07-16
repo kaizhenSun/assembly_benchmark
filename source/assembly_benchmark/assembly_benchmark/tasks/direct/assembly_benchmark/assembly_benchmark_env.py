@@ -13,7 +13,6 @@ from isaaclab.envs import DirectRLEnv
 from isaaclab.utils.math import matrix_from_quat, subtract_frame_transforms
 
 from assembly_benchmark.controllers import BimanualDifferentialIKController
-from assembly_benchmark.sensors import configure_r1_pro_gripper_tactile_scene_cfg
 
 from .assembly_benchmark_env_cfg import AssemblyBenchmarkEnvCfg
 
@@ -45,7 +44,6 @@ class AssemblyBenchmarkEnv(DirectRLEnv):
     cfg: AssemblyBenchmarkEnvCfg
 
     def __init__(self, cfg: AssemblyBenchmarkEnvCfg, render_mode: str | None = None, **kwargs):
-        configure_r1_pro_gripper_tactile_scene_cfg(cfg)
         super().__init__(cfg, render_mode, **kwargs)
 
         self.controller = BimanualDifferentialIKController(
