@@ -17,5 +17,9 @@ def make_lab_table_cfg(prim_path: str = "{ENV_REGEX_NS}/LabTable") -> AssetBaseC
         spawn=sim_utils.UsdFileCfg(
             usd_path=str(LAB_TABLE_USD_PATH),
             semantic_tags=[("class", "lab_table")],
+            collision_props=sim_utils.CollisionPropertiesCfg(
+                contact_offset=0.001,
+                rest_offset=0.0,
+            ),
         ),
     )
