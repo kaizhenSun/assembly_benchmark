@@ -3,15 +3,13 @@
 Assembly Benchmark is an Isaac Lab extension for R1 Pro assembly-task experiments. Assembly scenes are described by
 Python `AssemblySpec` objects and run through one generic direct RL environment.
 
-The default task uses the `one_leg` assembly. Optional VT-Refine-style tactile sensing is available on all four R1 Pro
-gripper fingers.
+The default task uses the `one_leg` assembly.
 
 ## Features
 
 - Explicit Gym task ids for every registered assembly.
 - Assembly target-pose preview, scripted assembly, and keyboard teleoperation tools.
 - Training and playback entry points for common RL backends.
-- Optional gripper tactile sensing and pressure visualization.
 
 ## Assemblies
 
@@ -36,7 +34,7 @@ stool
 
 Each assembly module defines parts and target relations in an `AssemblySpec`. The registry exposes those specs to the
 task configuration layer, which builds an Isaac Lab scene and environment configuration for every assembly. All task
-ids then run through the same `AssemblyBenchmarkEnv`, R1 Pro controller, and optional tactile sensors.
+ids then run through the same `AssemblyBenchmarkEnv` and R1 Pro controller.
 
 This keeps assembly geometry and target data separate from reusable control, observation, reward, and reset behavior.
 See [[Project Structure|Project-Structure]] for the complete file map and runtime flow.
@@ -47,7 +45,6 @@ The Wiki is organized as a short user guide:
 
 - [[Installation]] — install and verify the extension.
 - [[Running Tasks|Running-Tasks]] — launch tasks, tools, and RL entry points.
-- [[Tactile Sensing|Tactile-Sensing]] — enable and visualize gripper tactile data.
 - [[Project Structure|Project-Structure]] — understand source modules, assets, scripts, and tests.
 
 The source pages live in `docs/wiki/`, `_Sidebar.md` defines their navigation order, and changes are published to the

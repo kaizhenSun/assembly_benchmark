@@ -151,7 +151,7 @@ import numpy as np  # noqa: E402
 import torch  # noqa: E402
 from assembly_benchmark.assembly import make_assembly  # noqa: E402
 from assembly_benchmark.assets.furniture.lab_table import LAB_TABLE_SURFACE_Z  # noqa: E402
-from assembly_benchmark.foundationpose import (  # noqa: E402
+from foundationpose import (  # noqa: E402
     canonicalize_pose_by_symmetry,
     depth_mm_uint16,
     ensure_foundationpose_container,

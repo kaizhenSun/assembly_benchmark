@@ -6,8 +6,40 @@
 from __future__ import annotations
 
 import importlib.util
+from pathlib import Path
+from xml.etree import ElementTree
 
 import pytest
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+PACKAGE_ASSET_ROOT = REPO_ROOT / "source" / "assembly_benchmark" / "assembly_benchmark" / "assets"
+R1_PRO_ASSET_DIR = PACKAGE_ASSET_ROOT / "robots" / "r1_pro"
+REMOVED_PAD_SENSOR_MARKERS = ("tac" + "tile", "vt_" + "refine", "flat_" + "pad")
+
+
+def _assert_removed_pad_sensor_markers_absent(value: str) -> None:
+    normalized_value = value.casefold()
+    assert all(marker not in normalized_value for marker in REMOVED_PAD_SENSOR_MARKERS)
+
+
+def test_r1_pro_urdf_and_asset_paths_exclude_removed_pad_sensor_assets() -> None:
+    urdf_root = ElementTree.parse(R1_PRO_ASSET_DIR / "robot.urdf").getroot()
+    _assert_removed_pad_sensor_markers_absent(ElementTree.tostring(urdf_root, encoding="unicode"))
+
+    for asset_path in (path for path in PACKAGE_ASSET_ROOT.rglob("*") if path.is_file()):
+        _assert_removed_pad_sensor_markers_absent(asset_path.relative_to(PACKAGE_ASSET_ROOT).as_posix())
+
+
+@pytest.mark.skipif(importlib.util.find_spec("pxr") is None, reason="USD runtime is not available")
+def test_r1_pro_generated_usd_layers_exclude_removed_pad_sensor_assets() -> None:
+    from pxr import Usd
+
+    for usd_name in ("r1_pro_fixed_base.usd", "r1_pro_fixed_physics.usd", "r1_pro_fixed_robot.usd"):
+        stage = Usd.Stage.Open(str(R1_PRO_ASSET_DIR / "configuration" / usd_name))
+
+        assert stage is not None
+        for layer in stage.GetUsedLayers():
+            _assert_removed_pad_sensor_markers_absent(layer.ExportToString())
 
 
 @pytest.mark.skipif(importlib.util.find_spec("carb") is None, reason="Isaac Sim runtime is not available")
@@ -20,6 +52,6 @@ def test_r1_pro_gripper_home_position_is_fully_open() -> None:
 
     assert R1_PRO_GRIPPER_HOME_POS == 0.05
     assert R1_PRO_CFG.init_state.joint_pos is not None
-    assert {
-        joint_name: R1_PRO_CFG.init_state.joint_pos[joint_name] for joint_name in R1_PRO_GRIPPER_JOINT_NAMES
-    } == {joint_name: R1_PRO_GRIPPER_HOME_POS for joint_name in R1_PRO_GRIPPER_JOINT_NAMES}
+    assert {joint_name: R1_PRO_CFG.init_state.joint_pos[joint_name] for joint_name in R1_PRO_GRIPPER_JOINT_NAMES} == {
+        joint_name: R1_PRO_GRIPPER_HOME_POS for joint_name in R1_PRO_GRIPPER_JOINT_NAMES
+    }

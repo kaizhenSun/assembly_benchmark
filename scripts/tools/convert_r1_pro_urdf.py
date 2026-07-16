@@ -29,14 +29,8 @@ app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
 from assembly_benchmark.robots.r1_pro import R1_PRO_ASSET_DIR, R1_PRO_URDF_PATH, R1_PRO_USD_PATH  # noqa: E402
-from assembly_benchmark.sensors import (  # noqa: E402
-    R1_PRO_GRIPPER_TACTILE_MATERIAL,
-    R1_PRO_GRIPPER_TACTILE_PAD_SPECS,
-    R1_PRO_GRIPPER_TACTILE_VISUAL_RGBA,
-    apply_tactile_compliant_material,
-)
 
-from pxr import Gf, Usd, UsdPhysics, UsdShade  # noqa: E402
+from pxr import Usd, UsdPhysics  # noqa: E402
 
 from isaaclab.sim.converters import UrdfConverter, UrdfConverterCfg  # noqa: E402
 
@@ -47,7 +41,6 @@ GRIPPER_COLLISION_PATHS = (
     "/colliders/right_gripper_link/right_gripper_link_collision",
     "/colliders/right_gripper_finger_link1/right_gripper_finger_link1_collision",
     "/colliders/right_gripper_finger_link2/right_gripper_finger_link2_collision",
-    *(pad_spec.usd_collider_root_path for pad_spec in R1_PRO_GRIPPER_TACTILE_PAD_SPECS),
 )
 _POSTPROCESS_COMPLETE = False
 
@@ -55,11 +48,6 @@ _POSTPROCESS_COMPLETE = False
 def _runtime_physics_stage_path(usd_path: Path) -> Path:
     physics_usd_path = usd_path.parent / "configuration" / f"{usd_path.stem}_physics.usd"
     return physics_usd_path if physics_usd_path.exists() else usd_path
-
-
-def _runtime_base_stage_path(usd_path: Path) -> Path:
-    base_usd_path = usd_path.parent / "configuration" / f"{usd_path.stem}_base.usd"
-    return base_usd_path if base_usd_path.exists() else usd_path
 
 
 def _find_single_mesh_under(stage: Usd.Stage, root_path: str, description: str) -> Usd.Prim:
@@ -97,81 +85,10 @@ def _fix_nested_collision_mesh_apis(usd_path: Path) -> None:
     print(f"[INFO] Fixed gripper collision APIs on {len(fixed_mesh_paths)} mesh prims in {stage_path}")
 
 
-def _apply_gripper_tactile_pad_visual_materials(usd_path: Path) -> None:
-    """Set the display color of all gripper tactile pads without changing collision materials."""
-    stage_path = _runtime_base_stage_path(usd_path)
-
-    stage = Usd.Stage.Open(str(stage_path))
-    if stage is None:
-        raise RuntimeError(f"Failed to open USD stage: {stage_path}")
-
-    updated_shader_paths: list[str] = []
-    for pad_spec in R1_PRO_GRIPPER_TACTILE_PAD_SPECS:
-        mesh_prim = _find_single_mesh_under(
-            stage,
-            pad_spec.usd_visual_root_path,
-            "gripper tactile pad visual root",
-        )
-        material_targets = UsdShade.MaterialBindingAPI(mesh_prim).GetDirectBindingRel().GetTargets()
-        if len(material_targets) != 1:
-            raise RuntimeError(
-                f"Expected one visual material under {pad_spec.usd_visual_root_path}, found {len(material_targets)}"
-            )
-
-        material_prim = stage.GetPrimAtPath(material_targets[0])
-        shader_prims = [prim for prim in Usd.PrimRange(material_prim) if prim.GetTypeName() == "Shader"]
-        if len(shader_prims) != 1:
-            raise RuntimeError(
-                f"Expected one visual material shader under {material_prim.GetPath()}, found {len(shader_prims)}"
-            )
-
-        shader = UsdShade.Shader(shader_prims[0])
-        diffuse_color_input = shader.GetInput("diffuse_color_constant")
-        opacity_input = shader.GetInput("opacity_constant")
-        if not diffuse_color_input or not opacity_input:
-            raise RuntimeError(f"Tactile pad visual shader has unexpected inputs: {shader.GetPath()}")
-        diffuse_color_input.Set(Gf.Vec3f(*R1_PRO_GRIPPER_TACTILE_VISUAL_RGBA[:3]))
-        opacity_input.Set(R1_PRO_GRIPPER_TACTILE_VISUAL_RGBA[3])
-        updated_shader_paths.append(str(shader.GetPath()))
-
-    stage.GetRootLayer().Save()
-    print(f"[INFO] Applied configured visual material to gripper tactile pads {updated_shader_paths} in {stage_path}")
-
-
-def _apply_gripper_tactile_pad_compliant_materials(usd_path: Path) -> None:
-    """Bind independent PhysX compliant contact materials to all tactile pad colliders."""
-    stage_path = _runtime_physics_stage_path(usd_path)
-
-    stage = Usd.Stage.Open(str(stage_path))
-    if stage is None:
-        raise RuntimeError(f"Failed to open USD stage: {stage_path}")
-
-    bound_mesh_paths: list[str] = []
-    for pad_spec in R1_PRO_GRIPPER_TACTILE_PAD_SPECS:
-        mesh_prim = _find_single_mesh_under(
-            stage,
-            pad_spec.usd_collider_root_path,
-            "gripper tactile pad collider root",
-        )
-        stage.DefinePrim(f"{pad_spec.usd_collider_root_path}/materials", "Scope")
-        apply_tactile_compliant_material(
-            stage,
-            mesh_prim,
-            pad_spec.usd_material_path,
-            R1_PRO_GRIPPER_TACTILE_MATERIAL,
-        )
-        bound_mesh_paths.append(str(mesh_prim.GetPath()))
-
-    stage.GetRootLayer().Save()
-    print(f"[INFO] Applied compliant materials to gripper tactile pad colliders {bound_mesh_paths} in {stage_path}")
-
-
 def _postprocess_r1_pro_usd(usd_path: Path) -> None:
     """Apply all runtime USD fixes that should survive URDF reconversion."""
     global _POSTPROCESS_COMPLETE
     _fix_nested_collision_mesh_apis(usd_path)
-    _apply_gripper_tactile_pad_visual_materials(usd_path)
-    _apply_gripper_tactile_pad_compliant_materials(usd_path)
     _POSTPROCESS_COMPLETE = True
 
 

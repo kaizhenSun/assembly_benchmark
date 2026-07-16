@@ -15,6 +15,16 @@ ISAAC_SIM_RUNTIME_AVAILABLE = (
 )
 
 
+def test_sensor_public_api_only_exports_r1_pro_head_camera() -> None:
+    import assembly_benchmark.sensors as sensors
+
+    assert sensors.__all__ == (
+        "R1_PRO_HEAD_CAMERA_SPEC",
+        "R1ProHeadCameraSpec",
+        "make_r1_pro_head_camera_cfg",
+    )
+
+
 def test_r1_pro_head_camera_spec_matches_asset_generation() -> None:
     from assembly_benchmark.sensors import R1_PRO_HEAD_CAMERA_SPEC, R1ProHeadCameraSpec
 

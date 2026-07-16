@@ -9,10 +9,11 @@ import json
 import subprocess
 from pathlib import Path
 
-import assembly_benchmark.foundationpose as foundationpose_module
 import numpy as np
 import pytest
-from assembly_benchmark.foundationpose import (
+
+import scripts.tools.foundationpose as foundationpose_module
+from scripts.tools.foundationpose import (
     BOUNDING_BOX_EDGES,
     FOUNDATIONPOSE_RESULT_PREFIX,
     canonicalize_pose_by_symmetry,
