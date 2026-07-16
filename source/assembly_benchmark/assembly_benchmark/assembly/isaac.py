@@ -35,6 +35,10 @@ def make_assembly_part_spawn_cfg(assembly: AssemblySpec, part: AssemblyPartSpec)
                 disable_gravity=True,
                 max_depenetration_velocity=5.0,
             ),
+            collision_props=sim_utils.CollisionPropertiesCfg(
+                contact_offset=0.001,
+                rest_offset=0.0,
+            ),
         )
     if part.body_type == "dynamic":
         return sim_utils.UsdFileCfg(
@@ -43,6 +47,12 @@ def make_assembly_part_spawn_cfg(assembly: AssemblySpec, part: AssemblyPartSpec)
             rigid_props=sim_utils.RigidBodyPropertiesCfg(
                 disable_gravity=False,
                 max_depenetration_velocity=5.0,
+                solver_position_iteration_count=192,
+                solver_velocity_iteration_count=1,
+            ),
+            collision_props=sim_utils.CollisionPropertiesCfg(
+                contact_offset=0.001,
+                rest_offset=0.0,
             ),
             mass_props=mass_props,
         )

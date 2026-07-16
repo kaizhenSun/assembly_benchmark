@@ -63,11 +63,17 @@ R1_PRO_CFG = ArticulationCfg(
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=True,
             max_depenetration_velocity=5.0,
+            solver_position_iteration_count=192,
+            solver_velocity_iteration_count=1,
+        ),
+        collision_props=sim_utils.CollisionPropertiesCfg(
+            contact_offset=0.001,
+            rest_offset=0.0,
         ),
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
             enabled_self_collisions=True,
-            solver_position_iteration_count=16,
-            solver_velocity_iteration_count=4,
+            solver_position_iteration_count=192,
+            solver_velocity_iteration_count=1,
         ),
     ),
     init_state=ArticulationCfg.InitialStateCfg(

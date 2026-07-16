@@ -10,7 +10,8 @@ from isaaclab.assets import AssetBaseCfg, RigidObjectCfg
 from isaaclab.envs import DirectRLEnvCfg
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sensors import CameraCfg
-from isaaclab.sim import SimulationCfg
+from isaaclab.sim import PhysxCfg, SimulationCfg
+from isaaclab.sim.spawners.materials.physics_materials_cfg import RigidBodyMaterialCfg
 from isaaclab.utils import configclass
 
 from assembly_benchmark.assembly import available_assemblies, make_assembly
@@ -130,7 +131,28 @@ class AssemblyBenchmarkEnvCfg(DirectRLEnvCfg):
     observation_space = ARM_OBSERVATION_SIZE
     state_space = 0
 
-    sim: SimulationCfg = SimulationCfg(dt=1 / 240, render_interval=decimation)
+    sim: SimulationCfg = SimulationCfg(
+        device="cuda:0",
+        dt=1 / 120,
+        render_interval=decimation,
+        gravity=(0.0, 0.0, -9.81),
+        physx=PhysxCfg(
+            solver_type=1,
+            max_position_iteration_count=192,  # Important to avoid interpenetration.
+            max_velocity_iteration_count=1,
+            bounce_threshold_velocity=0.2,
+            friction_offset_threshold=0.01,
+            friction_correlation_distance=0.00625,
+            gpu_max_rigid_contact_count=2**23,
+            gpu_max_rigid_patch_count=2**23,
+            gpu_collision_stack_size=2**28,
+            gpu_max_num_partitions=1,  # Important for stable simulation.
+        ),
+        physics_material=RigidBodyMaterialCfg(
+            static_friction=1.0,
+            dynamic_friction=1.0,
+        ),
+    )
     scene: AssemblyBenchmarkBaseSceneCfg = AssemblyBenchmarkBaseSceneCfg(
         num_envs=DEFAULT_NUM_ENVS,
         env_spacing=DEFAULT_ENV_SPACING,
