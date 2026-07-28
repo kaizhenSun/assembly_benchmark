@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from .beam import BeamAssemblySpec, make_beam_assembly
 from .cabinet import CabinetAssemblySpec, make_cabinet_assembly
 from .chair import ChairAssemblySpec, make_chair_assembly
 from .desk import DeskAssemblySpec, make_desk_assembly
@@ -20,8 +21,8 @@ from .specs import AssemblySpec
 from .square_table import SquareTableAssemblySpec, make_square_table_assembly
 from .stool import StoolAssemblySpec, make_stool_assembly
 
-
 _ASSEMBLY_FACTORIES: dict[str, Callable[[], AssemblySpec]] = {
+    "beam": make_beam_assembly,
     "cabinet": make_cabinet_assembly,
     "chair": make_chair_assembly,
     "desk": make_desk_assembly,
@@ -46,9 +47,7 @@ def register_assembly(name: str, factory: Callable[[], AssemblySpec]) -> None:
 
     assembly = factory()
     if assembly.name != name:
-        raise ValueError(
-            f"Assembly factory registered as '{name}' returned spec named '{assembly.name}'."
-        )
+        raise ValueError(f"Assembly factory registered as '{name}' returned spec named '{assembly.name}'.")
 
     _ASSEMBLY_FACTORIES[name] = factory
 
@@ -63,6 +62,7 @@ def make_assembly(name: str) -> AssemblySpec:
 
 
 __all__ = [
+    "BeamAssemblySpec",
     "CabinetAssemblySpec",
     "ChairAssemblySpec",
     "DeskAssemblySpec",
@@ -73,6 +73,7 @@ __all__ = [
     "SquareTableAssemblySpec",
     "StoolAssemblySpec",
     "available_assemblies",
+    "make_beam_assembly",
     "make_cabinet_assembly",
     "make_chair_assembly",
     "make_desk_assembly",

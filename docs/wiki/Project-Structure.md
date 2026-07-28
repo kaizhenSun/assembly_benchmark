@@ -10,6 +10,8 @@ source/assembly_benchmark/
   assembly_benchmark/
     assembly/                         # assembly specs, relations, registry, and Isaac asset cfg conversion
     tasks/direct/assembly_benchmark/  # generated scene/env cfgs, Gym registration, runtime environment, RL cfgs
+    tasks/direct/r1_pro_beam_insertion/ # dedicated Beam02 left-insertion environment and RL-Games cfg
+    planning/                         # dependency-light analytic assembly paths
     robots/                           # R1 Pro articulation configuration and joint/link constants
     controllers/                      # bimanual joint-position and Differential IK controllers
     sensors/                          # R1 Pro RGB-D/semantic camera configuration helpers
@@ -66,6 +68,10 @@ class.
 - The task package `__init__.py` registers the default alias and each explicit task id, together with RL backend cfgs.
 - `assembly_benchmark_env.py` implements reset, observation, action, reward, and success behavior.
 - `agents/` stores PPO configurations consumed by the RL wrapper scripts.
+- `r1_pro_beam_insertion/` implements the camera-free Beam 0-to-2 specialist task with 3D residual actions,
+  asymmetric observations, socket noise, and bimanual whole-body IK that holds the right end-effector pose.
+- `planning/geometric_insertion.py` defines the simulator-independent 20.2 mm straight insertion segment used by
+  the Beam02 baseline and its tests.
 
 ### Robot, control, and sensing
 
@@ -80,6 +86,7 @@ class.
 - `assets/furniture/<assembly>/` groups source URDFs, meshes and tags, plus generated USD folders for each assembly.
 - `assets/furniture/lab_table/` contains the shared work table used by the base scene.
 - `assets/robots/r1_pro/` contains the robot source model and fixed-base USD loaded by the environment.
+- `assets/robots/r1_pro_beam02/` contains the task-specific R1 Pro USD with Beam plug 0 fixed to the left gripper.
 
 Assembly USD assets are generated offline by `generate_assembly_usd_assets.py`. The R1 Pro USD is generated and
 post-processed by `convert_r1_pro_urdf.py`. Runtime tasks load checked-in USD assets directly.
@@ -94,6 +101,8 @@ The main script groups are:
 - **Robot tools:** `run_r1_pro_diff_ik.py`, `run_r1_pro_keyboard_teleop.py`, and
   `run_r1_pro_one_leg_scripted_assembly.py` exercise reusable robot control.
 - **Asset tools:** `generate_assembly_usd_assets.py` and `convert_r1_pro_urdf.py` prepare runtime USD assets.
+- **Beam02 tools:** `generate_r1_pro_beam02_asset.py` builds the fixed-plug robot and
+  `run_r1_pro_beam02_geometric_insertion.py` replays its zero-residual path.
 - **Diagnostics:** joint-response scripts isolate controller and actuator behavior.
 - **RL wrappers:** each backend directory supplies matching train/play entry points while task-side agent cfgs remain
   under the environment package.

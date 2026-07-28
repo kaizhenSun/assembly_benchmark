@@ -17,6 +17,8 @@ R1_PRO_ASSET_DIR = Path(__file__).resolve().parents[1] / "assets" / "robots" / "
 R1_PRO_URDF_PATH = R1_PRO_ASSET_DIR / "robot.urdf"
 R1_PRO_USD_PATH = R1_PRO_ASSET_DIR / "r1_pro_fixed.usd"
 R1_PRO_MESH_DIR = R1_PRO_ASSET_DIR / "meshes"
+R1_PRO_BEAM02_ASSET_DIR = R1_PRO_ASSET_DIR.parent / "r1_pro_beam02"
+R1_PRO_BEAM02_USD_PATH = R1_PRO_BEAM02_ASSET_DIR / "r1_pro_beam02_fixed.usd"
 
 R1_PRO_TORSO_JOINT_NAMES = [f"torso_joint{i}" for i in range(1, 5)]
 R1_PRO_LEFT_ARM_JOINT_NAMES = [f"left_arm_joint{i}" for i in range(1, 8)]

@@ -7,6 +7,8 @@
 
 from __future__ import annotations
 
+import math
+
 import torch
 
 from isaaclab.assets import Articulation
@@ -57,7 +59,7 @@ class BimanualJointPositionController:
 
     def reset(self, env_ids: torch.Tensor | None = None) -> None:
         """Reset controller state."""
-        return None
+        return
 
     def compute(self, actions: torch.Tensor) -> torch.Tensor:
         """Compute position targets for controlled joints."""
@@ -115,6 +117,7 @@ class BimanualDifferentialIKController(BimanualJointPositionController):
         device: str,
         torso_joint_names: list[str] | None = None,
         include_torso_in_ik: bool = False,
+        control_dt: float | None = None,
     ):
         super().__init__(
             robot=robot,
@@ -128,6 +131,9 @@ class BimanualDifferentialIKController(BimanualJointPositionController):
         )
         self.device = device
         self.include_torso_in_ik = include_torso_in_ik
+        if control_dt is not None and (not math.isfinite(control_dt) or control_dt <= 0.0):
+            raise ValueError(f"control_dt must be finite and positive when provided, got {control_dt}.")
+        self.control_dt = control_dt
         self.torso_joint_ids: list[int] = []
         self.ik_joint_ids = self.left_arm_joint_ids + self.right_arm_joint_ids
         if self.include_torso_in_ik:
@@ -211,7 +217,7 @@ class BimanualDifferentialIKController(BimanualJointPositionController):
             right_gripper_target, self.right_gripper_joint_ids
         )
 
-        return joint_pos[:, self.joint_ids]
+        return self._apply_control_step_limits(joint_pos[:, self.joint_ids], self.joint_ids)
 
     def _compute_with_torso(self, actions: torch.Tensor) -> torch.Tensor:
         joint_pos = self.robot.data.default_joint_pos.clone()
@@ -272,7 +278,25 @@ class BimanualDifferentialIKController(BimanualJointPositionController):
             right_gripper_target, self.right_gripper_joint_ids
         )
 
-        return joint_pos[:, self.joint_ids]
+        return self._apply_control_step_limits(joint_pos[:, self.joint_ids], self.joint_ids)
+
+    def _apply_control_step_limits(self, target: torch.Tensor, joint_ids: list[int]) -> torch.Tensor:
+        """Apply optional per-control-step velocity limits without changing legacy callers."""
+        if self.control_dt is None:
+            return target
+
+        joint_pos = self.robot.data.joint_pos[:, joint_ids]
+        soft_limits = self.robot.data.soft_joint_pos_limits[:, joint_ids]
+        velocity_limits = self.robot.data.joint_vel_limits[:, joint_ids].clamp_min(0.0)
+        max_step = velocity_limits * self.control_dt
+        lower = torch.maximum(soft_limits[..., 0], joint_pos - max_step)
+        upper = torch.minimum(soft_limits[..., 1], joint_pos + max_step)
+
+        empty_interval = lower > upper
+        nearest_soft_limit = torch.clamp(joint_pos, min=soft_limits[..., 0], max=soft_limits[..., 1])
+        lower = torch.where(empty_interval, nearest_soft_limit, lower)
+        upper = torch.where(empty_interval, nearest_soft_limit, upper)
+        return torch.maximum(torch.minimum(target, upper), lower)
 
     def _compute_arm_target(
         self,
@@ -334,9 +358,7 @@ class BimanualDifferentialIKController(BimanualJointPositionController):
         return jacobian
 
     def _combined_bimanual_jacobian(self, root_pose_w: torch.Tensor) -> torch.Tensor:
-        left_torso_jacobian = self._jacobian_in_root_frame(
-            self.left_ik_jacobian_idx, self.torso_joint_ids, root_pose_w
-        )
+        left_torso_jacobian = self._jacobian_in_root_frame(self.left_ik_jacobian_idx, self.torso_joint_ids, root_pose_w)
         left_arm_jacobian = self._jacobian_in_root_frame(
             self.left_ik_jacobian_idx, self.left_arm_joint_ids, root_pose_w
         )
