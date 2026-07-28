@@ -14,7 +14,7 @@ from typing import Literal
 
 Quat = tuple[float, float, float, float]
 Vec3 = tuple[float, float, float]
-PartBodyType = Literal["visual", "static", "dynamic"]
+PartBodyType = Literal["visual", "static", "dynamic", "kinematic"]
 
 ASSEMBLY_ASSET_ROOT = Path(__file__).resolve().parents[1] / "assets" / "furniture"
 IDENTITY_QUAT: Quat = (1.0, 0.0, 0.0, 0.0)
@@ -36,6 +36,7 @@ class AssemblyPartSpec:
     body_type: PartBodyType
     mass: float | None = None
     density: float | None = None
+    friction: float | None = None
     reset: bool = True
     tag_ids: tuple[int, ...] = ()
     reset_footprint_xy: tuple[float, float] | None = None
@@ -65,6 +66,7 @@ def make_part(
     body_type: PartBodyType,
     mass: float | None = None,
     density: float | None = None,
+    friction: float | None = None,
     reset: bool = True,
     tag_ids: tuple[int, ...] = (),
     reset_footprint_xy: tuple[float, float] | None = None,
@@ -80,6 +82,7 @@ def make_part(
         body_type=body_type,
         mass=mass,
         density=density,
+        friction=friction,
         reset=reset,
         tag_ids=tag_ids,
         reset_footprint_xy=reset_footprint_xy,
@@ -120,6 +123,7 @@ def make_dynamic_part(
     init_rot: Quat,
     mass: float | None = None,
     density: float | None = None,
+    friction: float | None = None,
     tag_ids: tuple[int, ...] = (),
     reset_footprint_xy: tuple[float, float] | None = None,
 ) -> AssemblyPartSpec:
@@ -134,8 +138,38 @@ def make_dynamic_part(
         body_type="dynamic",
         mass=mass,
         density=density,
+        friction=friction,
         tag_ids=tag_ids,
         reset_footprint_xy=reset_footprint_xy,
+    )
+
+
+def make_kinematic_part(
+    *,
+    scene_key: str,
+    asset_name: str,
+    prim_name: str,
+    urdf_rel_path: str | Path,
+    init_pos: Vec3,
+    init_rot: Quat,
+    mass: float | None = None,
+    density: float | None = None,
+    friction: float | None = None,
+    tag_ids: tuple[int, ...] = (),
+) -> AssemblyPartSpec:
+    """Create a resettable kinematic rigid assembly part."""
+    return make_part(
+        scene_key=scene_key,
+        asset_name=asset_name,
+        prim_name=prim_name,
+        urdf_rel_path=urdf_rel_path,
+        init_pos=init_pos,
+        init_rot=init_rot,
+        body_type="kinematic",
+        mass=mass,
+        density=density,
+        friction=friction,
+        tag_ids=tag_ids,
     )
 
 
@@ -214,11 +248,22 @@ class UsdGenerationAssetSpec:
     body_type: PartBodyType
     mass: float | None
     density: float | None
+    friction: float | None
 
     @property
     def is_dynamic(self) -> bool:
         """Whether this asset should be generated as a dynamic rigid body."""
         return self.body_type == "dynamic"
+
+    @property
+    def is_kinematic(self) -> bool:
+        """Whether this asset is moved kinematically at runtime."""
+        return self.body_type == "kinematic"
+
+    @property
+    def requires_free_root(self) -> bool:
+        """Whether the generated USD needs a free rigid-body root."""
+        return self.body_type in ("dynamic", "kinematic")
 
 
 @dataclass(frozen=True)
@@ -246,15 +291,19 @@ class AssemblySpec:
             )
 
         for part in self.parts:
-            if part.body_type == "dynamic":
+            if part.body_type in ("dynamic", "kinematic"):
                 if (part.mass is None) == (part.density is None):
                     raise ValueError(
-                        f"Assembly '{self.name}' dynamic part '{part.scene_key}' must declare exactly one "
+                        f"Assembly '{self.name}' rigid part '{part.scene_key}' must declare exactly one "
                         "of mass or density."
                     )
             elif part.mass is not None or part.density is not None:
                 raise ValueError(
-                    f"Assembly '{self.name}' non-dynamic part '{part.scene_key}' must not declare mass or density."
+                    f"Assembly '{self.name}' non-rigid part '{part.scene_key}' must not declare mass or density."
+                )
+            if part.friction is not None and part.friction < 0.0:
+                raise ValueError(
+                    f"Assembly '{self.name}' part '{part.scene_key}' has negative friction {part.friction}."
                 )
 
         part_name_set = set(part_names)
@@ -312,6 +361,7 @@ class AssemblySpec:
                     body_type=part.body_type,
                     mass=part.mass,
                     density=part.density,
+                    friction=part.friction,
                 )
             )
         return tuple(assets)

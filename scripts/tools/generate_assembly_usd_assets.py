@@ -17,7 +17,6 @@ from pathlib import Path
 
 from isaaclab.app import AppLauncher
 
-
 SDF_RESOLUTION = 512
 SDF_SUBGRID_RESOLUTION = 8
 SDF_MARGIN = 0.001
@@ -48,9 +47,9 @@ args_cli.headless = True
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
-import isaaclab.sim as sim_utils
-
 from assembly_benchmark.assembly import make_assembly
+
+import isaaclab.sim as sim_utils
 
 
 def _ensure_urdf_colliders_are_composed(usd_path: str) -> None:
@@ -109,6 +108,48 @@ def _convert_composed_colliders_to_sdf(usd_path: str) -> None:
         stage.GetRootLayer().Save()
 
 
+def _bind_rigid_body_material(usd_path: str, friction: float | None) -> None:
+    """Author and bind the per-part friction material in a generated USD."""
+    if friction is None:
+        return
+
+    from pxr import Usd, UsdPhysics, UsdShade
+
+    stage = Usd.Stage.Open(usd_path)
+    if stage is None:
+        raise RuntimeError(f"Failed to open generated USD: {usd_path}")
+
+    root_prim = stage.GetDefaultPrim()
+    if not root_prim.IsValid():
+        root_prims = stage.GetPseudoRoot().GetChildren()
+        if len(root_prims) != 1:
+            raise RuntimeError(f"Generated USD has no unambiguous asset root: {usd_path}")
+        root_prim = root_prims[0]
+
+    material_path = root_prim.GetPath().AppendChild("physicsMaterial")
+    material = UsdShade.Material.Define(stage, material_path)
+    material_api = UsdPhysics.MaterialAPI.Apply(material.GetPrim())
+    material_api.CreateStaticFrictionAttr(friction)
+    material_api.CreateDynamicFrictionAttr(friction)
+    material_api.CreateRestitutionAttr(0.0)
+
+    collider_count = 0
+    for prim in stage.TraverseAll():
+        if not prim.HasAPI(UsdPhysics.CollisionAPI):
+            continue
+        collider_count += 1
+        binding_api = UsdShade.MaterialBindingAPI.Apply(prim)
+        binding_api.Bind(
+            material,
+            bindingStrength=UsdShade.Tokens.strongerThanDescendants,
+            materialPurpose="physics",
+        )
+
+    if collider_count == 0:
+        raise RuntimeError(f"Generated USD has no collider for its friction material: {usd_path}")
+    stage.GetRootLayer().Save()
+
+
 def _strip_converter_metadata(asset_dir: Path) -> None:
     for metadata_file in (asset_dir / ".asset_hash", asset_dir / "config.yaml"):
         metadata_file.unlink(missing_ok=True)
@@ -125,7 +166,12 @@ def _prepare_output_dir(asset_dir: Path, overwrite: bool) -> None:
 
 
 def _generate_static_asset(
-    assembly_name: str, asset_name: str, urdf_path: Path, output_dir: Path, overwrite: bool
+    assembly_name: str,
+    asset_name: str,
+    urdf_path: Path,
+    friction: float | None,
+    output_dir: Path,
+    overwrite: bool,
 ) -> None:
     asset_dir = output_dir / asset_name
     _prepare_output_dir(asset_dir, overwrite)
@@ -143,16 +189,18 @@ def _generate_static_asset(
     )
     converter = sim_utils.UrdfConverter(cfg)
     _ensure_urdf_colliders_are_composed(converter.usd_path)
+    _bind_rigid_body_material(converter.usd_path, friction)
     _strip_converter_metadata(asset_dir)
     print(f"[INFO] Generated static {assembly_name} USD: {converter.usd_path}")
 
 
-def _generate_dynamic_asset(
+def _generate_free_rigid_asset(
     assembly_name: str,
     asset_name: str,
     urdf_path: Path,
     mass: float | None,
     density: float | None,
+    friction: float | None,
     output_dir: Path,
     overwrite: bool,
 ) -> None:
@@ -165,7 +213,7 @@ def _generate_dynamic_asset(
     elif density is not None:
         link_density = density
     else:
-        raise ValueError(f"Dynamic asset '{asset_name}' is missing mass or density.")
+        raise ValueError(f"Free-root rigid asset '{asset_name}' is missing mass or density.")
 
     cfg = sim_utils.UrdfFileCfg(
         asset_path=str(urdf_path),
@@ -183,8 +231,9 @@ def _generate_dynamic_asset(
     )
     converter = sim_utils.UrdfConverter(cfg)
     _convert_composed_colliders_to_sdf(converter.usd_path)
+    _bind_rigid_body_material(converter.usd_path, friction)
     _strip_converter_metadata(asset_dir)
-    print(f"[INFO] Generated dynamic SDF {assembly_name} USD: {converter.usd_path}")
+    print(f"[INFO] Generated free-root SDF {assembly_name} USD: {converter.usd_path}")
 
 
 def main() -> None:
@@ -196,13 +245,14 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     for asset in assembly.usd_generation_assets():
-        if asset.is_dynamic:
-            _generate_dynamic_asset(
+        if asset.requires_free_root:
+            _generate_free_rigid_asset(
                 assembly.name,
                 asset.asset_name,
                 asset.urdf_path,
                 asset.mass,
                 asset.density,
+                asset.friction,
                 output_dir,
                 args_cli.overwrite,
             )
@@ -211,6 +261,7 @@ def main() -> None:
                 assembly.name,
                 asset.asset_name,
                 asset.urdf_path,
+                asset.friction,
                 output_dir,
                 args_cli.overwrite,
             )

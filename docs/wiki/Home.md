@@ -9,6 +9,7 @@ The default task uses the `one_leg` assembly.
 
 - Explicit Gym task ids for every registered assembly.
 - Assembly target-pose preview, scripted assembly, and keyboard teleoperation tools.
+- A dedicated R1 Pro Beam 0-to-2 left-arm insertion task with an analytic geometric baseline and whole-body IK.
 - Training and playback entry points for common RL backends.
 
 ## Assemblies
@@ -16,6 +17,7 @@ The default task uses the `one_leg` assembly.
 The registered assemblies are:
 
 ```text
+beam
 cabinet
 chair
 desk
@@ -29,6 +31,9 @@ stool
 
 `Assembly-Benchmark-Direct-v0` is the default alias for `one_leg`. Explicit tasks follow the pattern
 `Assembly-Benchmark-<Name>-Direct-v0`.
+
+The fixed-plug training variant uses the explicit id `Assembly-Benchmark-Beam02-LeftInsert-Direct-v0`; see
+[[Running Tasks|Running-Tasks]] for geometric replay and RL-Games commands.
 
 ## How It Works
 

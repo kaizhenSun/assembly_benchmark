@@ -77,6 +77,40 @@ Keyboard teleoperation requires a GUI and supports one environment.
 The separate `run_r1_pro_diff_ik.py` and `run_r1_pro_joint_response_diagnostic.py` tools help inspect controller targets
 and low-level actuator response without running an RL policy.
 
+## R1 Pro Beam 0-to-2 Insertion
+
+`Assembly-Benchmark-Beam02-LeftInsert-Direct-v0` is a dedicated, camera-free training task. Beam plug 0 is fixed to
+the R1 Pro left gripper. The bimanual whole-body Differential IK controller commands the torso and both arms: the
+left hand follows the insertion path, while the right arm compensates torso motion to hold its reset end-effector pose.
+The 3D action is a residual translation in the socket-aligned path frame. Actor observations contain the nominal
+3D socket-to-plug displacement; the asymmetric critic also receives the actual displacement after the socket's
+uniform ±3 mm reset noise.
+
+Replay the analytic 20.2 mm straight insertion path with zero policy residuals:
+
+```bash
+python scripts/tools/run_r1_pro_beam02_geometric_insertion.py \
+  --num_envs 1 --device cuda:0 --headless
+```
+
+Add `--show_path` in GUI mode to render eleven 1 mm markers along each nominal path. The baseline advances to the
+next finite-segment waypoint and limits the combined baseline-plus-residual translation to 2 mm per policy step.
+
+The task runs physics at 120 Hz and policy control at 30 Hz for 128-step episodes. It does not require
+`--enable_cameras`. To regenerate the task-specific robot asset after changing the R1 Pro or Beam plug geometry, run:
+
+```bash
+python scripts/tools/generate_r1_pro_beam02_asset.py --overwrite
+```
+
+Train the migrated Fabrica-style asymmetric PPO policy with RL-Games:
+
+```bash
+python scripts/rl_games/train.py \
+  --task=Assembly-Benchmark-Beam02-LeftInsert-Direct-v0 \
+  --num_envs 1024 --device cuda:0 --headless
+```
+
 ## Reinforcement Learning
 
 Train with RSL-RL:

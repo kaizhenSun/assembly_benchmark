@@ -20,6 +20,7 @@ from assembly_benchmark.assembly import (
     AssemblyTargetPose,
     available_assemblies,
     make_assembly,
+    make_beam_assembly,
     make_cabinet_assembly,
     make_chair_assembly,
     make_desk_assembly,
@@ -33,6 +34,7 @@ from assembly_benchmark.assembly import (
 )
 
 EXPECTED_ASSEMBLIES = (
+    "beam",
     "cabinet",
     "chair",
     "desk",
@@ -61,6 +63,7 @@ CHAIR_PART_NAMES = (
     "chair_nut2",
 )
 EXPECTED_PART_NAMES = {
+    "beam": ("beam_socket_2", "beam_plug_0"),
     "cabinet": ("base_tag", "cabinet_body", "cabinet_door_left", "cabinet_door_right", "cabinet_top"),
     "chair": CHAIR_PART_NAMES,
     "desk": ("base_tag", "desk_top", "desk_leg1", "desk_leg2", "desk_leg3", "desk_leg4"),
@@ -72,6 +75,7 @@ EXPECTED_PART_NAMES = {
     "stool": ("base_tag", "stool_seat", "stool_leg1", "stool_leg2", "stool_leg3"),
 }
 EXPECTED_RELATIONS = {
+    "beam": (("beam_socket_2", "beam_plug_0", 0, 1, DEFAULT_ORI_BOUND),),
     "cabinet": (
         ("cabinet_body", "cabinet_door_right", 0, 1, DEFAULT_ORI_BOUND),
         ("cabinet_body", "cabinet_door_left", 0, 1, DEFAULT_ORI_BOUND),
@@ -116,6 +120,7 @@ EXPECTED_RELATIONS = {
     ),
 }
 ASSEMBLY_FACTORIES = {
+    "beam": make_beam_assembly,
     "cabinet": make_cabinet_assembly,
     "chair": make_chair_assembly,
     "desk": make_desk_assembly,
@@ -266,13 +271,14 @@ def test_assembly_contract(assembly_name: str) -> None:
 
     assert assembly.name == assembly_name
     assert assembly.asset_root.name == assembly_name
-    assert assembly.part_names[0] == "base_tag"
+    if assembly_name != "beam":
+        assert assembly.part_names[0] == "base_tag"
 
     scene_keys = [part.scene_key for part in assembly.parts]
     assert len(scene_keys) == len(set(scene_keys))
     for part in assembly.parts:
         _assert_normalized_quat(part.init_rot)
-        if part.body_type == "dynamic":
+        if part.body_type in ("dynamic", "kinematic"):
             assert (part.mass is None) != (part.density is None)
             if part.mass is not None:
                 assert part.mass > 0.0
@@ -284,9 +290,10 @@ def test_assembly_contract(assembly_name: str) -> None:
             assert part.density is None
             assert part.reset is False
 
-    base_tag = assembly.part("base_tag")
-    assert base_tag.body_type == "visual"
-    assert base_tag.tag_ids == (0, 1, 2, 3)
+    if assembly_name != "beam":
+        base_tag = assembly.part("base_tag")
+        assert base_tag.body_type == "visual"
+        assert base_tag.tag_ids == (0, 1, 2, 3)
 
     for relation in assembly.assembly_relations:
         assert relation.parent in scene_keys
@@ -304,7 +311,8 @@ def test_assembly_part_order_contract(assembly_name: str) -> None:
     expected_part_names = EXPECTED_PART_NAMES[assembly_name]
 
     assert assembly.part_names == expected_part_names
-    assert assembly.reset_part_names == expected_part_names[1:]
+    expected_reset_part_names = expected_part_names if assembly_name == "beam" else expected_part_names[1:]
+    assert assembly.reset_part_names == expected_reset_part_names
 
 
 @pytest.mark.parametrize("assembly_name", EXPECTED_ASSEMBLIES)
@@ -353,13 +361,14 @@ def test_usd_generation_asset_contract(assembly_name: str) -> None:
     generation_assets = {asset.asset_name: asset for asset in assembly.usd_generation_assets()}
 
     assert set(generation_assets) == {part.asset_name for part in assembly.parts}
-    assert not generation_assets["base_tag"].is_dynamic
+    if "base_tag" in generation_assets:
+        assert not generation_assets["base_tag"].is_dynamic
     for part in assembly.parts:
         asset = generation_assets[part.asset_name]
         assert asset.body_type == part.body_type
         assert asset.mass == part.mass
         assert asset.density == part.density
-        if asset.is_dynamic:
+        if asset.requires_free_root:
             assert (asset.mass is None) != (asset.density is None)
 
 

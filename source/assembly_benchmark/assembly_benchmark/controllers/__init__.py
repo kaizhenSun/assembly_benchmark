@@ -5,6 +5,12 @@
 
 """Controllers used by assembly_benchmark tasks."""
 
-from .r1_pro import BimanualDifferentialIKController, BimanualJointPositionController
+from .r1_pro import (
+    BimanualDifferentialIKController,
+    BimanualJointPositionController,
+)
 
-__all__ = ["BimanualDifferentialIKController", "BimanualJointPositionController"]
+__all__ = [
+    "BimanualDifferentialIKController",
+    "BimanualJointPositionController",
+]
