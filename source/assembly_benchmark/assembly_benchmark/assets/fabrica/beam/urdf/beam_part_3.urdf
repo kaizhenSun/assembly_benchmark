@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!-- Fabrica beam part 3; see ../NOTICE.md for provenance. -->
+<robot name="beam_part_3">
+    <link name="beam_part_3">
+        <visual>
+            <geometry>
+                <mesh filename="../mesh/beam_part_3.obj" scale="1 1 1"/>
+            </geometry>
+        </visual>
+        <collision>
+            <geometry>
+                <mesh filename="../mesh/beam_part_3.obj" scale="1 1 1"/>
+            </geometry>
+            <sdf resolution="512"/>
+        </collision>
+    </link>
+</robot>

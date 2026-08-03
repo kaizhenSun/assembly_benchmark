@@ -5,15 +5,41 @@
 
 """Assembly specifications for assembly_benchmark tasks."""
 
-from .beam import BeamAssemblySpec, make_beam_assembly
-from .cabinet import CabinetAssemblySpec, make_cabinet_assembly
-from .chair import ChairAssemblySpec, make_chair_assembly
-from .desk import DeskAssemblySpec, make_desk_assembly
-from .drawer import DrawerAssemblySpec, make_drawer_assembly
-from .lamp import LampAssemblySpec, make_lamp_assembly
-from .one_leg import OneLegAssemblySpec, make_one_leg_assembly
+from .fabrica import (
+    BEAM_DISASSEMBLY_PATH,
+    BEAM_FABRICA_PLAN,
+    PIPER_FABRICA_BASE_POS,
+    PIPER_FABRICA_GRIPPER_BASE_POS,
+    PIPER_FABRICA_GRIPPER_BASE_ROTATION_RPY,
+    BeamAssemblySpec,
+    FabricaAssemblyPlan,
+    FabricaRelationPlan,
+    assign_fabrica_relations,
+    available_fabrica_assemblies,
+    load_fabrica_assembly_plan,
+    make_beam_assembly,
+)
+from .furniture import (
+    CabinetAssemblySpec,
+    ChairAssemblySpec,
+    DeskAssemblySpec,
+    DrawerAssemblySpec,
+    LampAssemblySpec,
+    OneLegAssemblySpec,
+    RoundTableAssemblySpec,
+    SquareTableAssemblySpec,
+    StoolAssemblySpec,
+    make_cabinet_assembly,
+    make_chair_assembly,
+    make_desk_assembly,
+    make_drawer_assembly,
+    make_lamp_assembly,
+    make_one_leg_assembly,
+    make_round_table_assembly,
+    make_square_table_assembly,
+    make_stool_assembly,
+)
 from .registry import available_assemblies, make_assembly, register_assembly
-from .round_table import RoundTableAssemblySpec, make_round_table_assembly
 from .specs import (
     ASSEMBLY_ASSET_ROOT,
     DEFAULT_ORI_BOUND,
@@ -34,8 +60,6 @@ from .specs import (
     make_relation,
     make_visual_part,
 )
-from .square_table import SquareTableAssemblySpec, make_square_table_assembly
-from .stool import StoolAssemblySpec, make_stool_assembly
 
 __all__ = [
     "AssemblyPartSpec",
@@ -47,19 +71,28 @@ __all__ = [
     "DEFAULT_POS_THRESHOLD",
     "DEFAULT_TARGET_INDEX",
     "BeamAssemblySpec",
+    "BEAM_DISASSEMBLY_PATH",
+    "BEAM_FABRICA_PLAN",
     "CabinetAssemblySpec",
     "ChairAssemblySpec",
     "DeskAssemblySpec",
     "DrawerAssemblySpec",
+    "FabricaAssemblyPlan",
+    "FabricaRelationPlan",
     "LampAssemblySpec",
     "OneLegAssemblySpec",
     "PartBodyType",
+    "PIPER_FABRICA_BASE_POS",
+    "PIPER_FABRICA_GRIPPER_BASE_POS",
+    "PIPER_FABRICA_GRIPPER_BASE_ROTATION_RPY",
     "Quat",
     "RoundTableAssemblySpec",
     "SquareTableAssemblySpec",
     "StoolAssemblySpec",
     "Vec3",
     "available_assemblies",
+    "available_fabrica_assemblies",
+    "assign_fabrica_relations",
     "assembly_asset_root",
     "make_assembly",
     "make_base_tag_part",
@@ -71,6 +104,7 @@ __all__ = [
     "make_dynamic_part",
     "make_kinematic_part",
     "make_lamp_assembly",
+    "load_fabrica_assembly_plan",
     "make_one_leg_assembly",
     "make_part",
     "make_relation",

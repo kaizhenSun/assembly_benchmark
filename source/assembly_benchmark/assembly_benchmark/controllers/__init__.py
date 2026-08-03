@@ -9,8 +9,10 @@ from .r1_pro import (
     BimanualDifferentialIKController,
     BimanualJointPositionController,
 )
+from .single_arm import SingleArmDifferentialIKController
 
 __all__ = [
     "BimanualDifferentialIKController",
     "BimanualJointPositionController",
+    "SingleArmDifferentialIKController",
 ]

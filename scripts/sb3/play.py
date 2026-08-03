@@ -65,6 +65,7 @@ import os
 import random
 import time
 
+import assembly_benchmark.tasks  # noqa: F401
 import gymnasium as gym
 import torch
 from stable_baselines3 import PPO
@@ -85,8 +86,6 @@ from isaaclab_rl.utils.pretrained_checkpoint import get_published_pretrained_che
 import isaaclab_tasks  # noqa: F401
 from isaaclab_tasks.utils.hydra import hydra_task_config
 from isaaclab_tasks.utils.parse_cfg import get_checkpoint_path
-
-import assembly_benchmark.tasks  # noqa: F401
 
 
 @hydra_task_config(args_cli.task, args_cli.agent)

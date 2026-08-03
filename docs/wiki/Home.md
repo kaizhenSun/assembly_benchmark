@@ -1,7 +1,7 @@
 # Assembly Benchmark
 
-Assembly Benchmark is an Isaac Lab extension for R1 Pro assembly-task experiments. Assembly scenes are described by
-Python `AssemblySpec` objects and run through one generic direct RL environment.
+Assembly Benchmark is an Isaac Lab extension for R1 Pro and Piper assembly-task experiments. Assembly scenes are
+described by Python `AssemblySpec` objects and run through direct RL environments.
 
 The default task uses the `one_leg` assembly.
 
@@ -9,7 +9,8 @@ The default task uses the `one_leg` assembly.
 
 - Explicit Gym task ids for every registered assembly.
 - Assembly target-pose preview, scripted assembly, and keyboard teleoperation tools.
-- A dedicated R1 Pro Beam 0-to-2 left-arm insertion task with an analytic geometric baseline and whole-body IK.
+- A self-contained Piper Fabrica specialist task covering all four Beam relations with fixed grasps, residual IK
+  control, and asymmetric RL-Games PPO observations.
 - Training and playback entry points for common RL backends.
 
 ## Assemblies
@@ -32,8 +33,8 @@ stool
 `Assembly-Benchmark-Direct-v0` is the default alias for `one_leg`. Explicit tasks follow the pattern
 `Assembly-Benchmark-<Name>-Direct-v0`.
 
-The fixed-plug training variant uses the explicit id `Assembly-Benchmark-Beam02-LeftInsert-Direct-v0`; see
-[[Running Tasks|Running-Tasks]] for geometric replay and RL-Games commands.
+The Piper fixed-plug training task uses `Assembly-Benchmark-FabricaFixPlugTaskAssemble-Direct-v0`; see
+[[Running Tasks|Running-Tasks]] for open-loop replay, asset regeneration, and RL-Games commands.
 
 ## How It Works
 

@@ -24,7 +24,6 @@ import os
 
 from isaaclab.app import AppLauncher
 
-
 parser = argparse.ArgumentParser(description="Run R1 Pro low-level joint response diagnostics.")
 parser.add_argument("--num_envs", type=int, default=1, help="Number of environments. Only 1 is supported.")
 parser.add_argument("--enable_gravity", action="store_true", help="Enable gravity on robot links for this run.")
@@ -85,7 +84,9 @@ parser.add_argument(
 )
 parser.add_argument("--summary_only", action="store_true", help="Print group summaries and worst joints only.")
 parser.add_argument("--top_k", type=int, default=8, help="Number of worst joints to print when --summary_only is set.")
-parser.add_argument("--print_interval", type=int, default=0, help="Print live max error every N steps. Use 0 to disable.")
+parser.add_argument(
+    "--print_interval", type=int, default=0, help="Print live max error every N steps. Use 0 to disable."
+)
 parser.add_argument(
     "--fast_exit",
     action="store_true",
@@ -135,12 +136,6 @@ app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
 import torch
-
-import isaaclab.sim as sim_utils
-from isaaclab.assets import AssetBaseCfg
-from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
-from isaaclab.utils import configclass
-
 from assembly_benchmark.robots.r1_pro import (
     R1_PRO_CFG,
     R1_PRO_LEFT_ARM_JOINT_NAMES,
@@ -149,6 +144,11 @@ from assembly_benchmark.robots.r1_pro import (
     R1_PRO_RIGHT_GRIPPER_JOINT_NAMES,
     R1_PRO_TORSO_JOINT_NAMES,
 )
+
+import isaaclab.sim as sim_utils
+from isaaclab.assets import AssetBaseCfg
+from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
+from isaaclab.utils import configclass
 
 
 @configclass
@@ -280,7 +280,9 @@ def _selected_joint_ids(group_ids: dict[str, list[int]], groups: list[str]) -> t
     return selected_joint_ids, joint_to_group
 
 
-def _make_step_target(robot, group_ids: dict[str, list[int]], groups: list[str], reference_pos: torch.Tensor) -> torch.Tensor:
+def _make_step_target(
+    robot, group_ids: dict[str, list[int]], groups: list[str], reference_pos: torch.Tensor
+) -> torch.Tensor:
     home_target = robot.data.default_joint_pos.clone()
     step_target = home_target.clone()
     soft_limits = robot.data.soft_joint_pos_limits[0]
@@ -421,7 +423,9 @@ def _print_summaries(metrics: list[dict[str, float | str]]) -> None:
     groups = sorted({str(metric["group"]) for metric in metrics})
     for group in groups:
         group_metrics = [metric for metric in metrics if metric["group"] == group]
-        finite_settles = [float(metric["settle_time"]) for metric in group_metrics if not math.isinf(metric["settle_time"])]
+        finite_settles = [
+            float(metric["settle_time"]) for metric in group_metrics if not math.isinf(metric["settle_time"])
+        ]
         settle_fail_count = len(group_metrics) - len(finite_settles)
         max_settle_time = max(finite_settles) if finite_settles else math.inf
         print(

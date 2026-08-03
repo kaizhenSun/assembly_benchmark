@@ -1,7 +1,7 @@
 # Assembly Benchmark
 
-Assembly Benchmark is an Isaac Lab extension for R1 Pro assembly-task experiments. It provides a generic direct RL
-environment, spec-driven assembly scenes, and task utilities. The default task uses the `one_leg` assembly.
+Assembly Benchmark is an Isaac Lab extension for R1 Pro and Piper assembly-task experiments. It provides a generic
+direct RL environment, spec-driven assembly scenes, and task utilities. The default task uses the `one_leg` assembly.
 
 ## Documentation Structure
 

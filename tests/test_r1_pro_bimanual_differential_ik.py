@@ -243,10 +243,10 @@ def _make_controller(controller_module, robot, control_dt=None):
     )
 
 
-def _beam02_controller_actions() -> torch.Tensor:
+def _sample_controller_actions() -> torch.Tensor:
     actions = torch.zeros((2, 16))
     actions[:, 0:7] = torch.tensor((0.1, 0.2, 0.4, 1.0, 0.0, 0.0, 0.0))
-    actions[:, 7] = -0.746
+    actions[:, 7] = -0.5
     actions[:, 15] = 1.0
     return actions
 
@@ -267,7 +267,7 @@ def test_bimanual_whole_body_jacobian_has_expected_task_blocks(controller_module
 def test_zero_right_pose_latches_and_recaptures_per_environment(controller_module) -> None:
     robot = _FakeRobot(controller_module)
     controller = _make_controller(controller_module, robot)
-    actions = _beam02_controller_actions()
+    actions = _sample_controller_actions()
 
     target = controller.compute(actions)
     first_hold_pose = controller.right_pose_command.clone()
@@ -286,13 +286,13 @@ def test_zero_right_pose_latches_and_recaptures_per_environment(controller_modul
     assert torch.equal(controller.right_pose_command[1], first_hold_pose[1])
 
 
-def test_bimanual_beam02_gripper_targets_and_optional_step_limits(controller_module) -> None:
+def test_bimanual_gripper_targets_and_optional_step_limits(controller_module) -> None:
     robot = _FakeRobot(controller_module)
     legacy_controller = _make_controller(controller_module, robot)
-    legacy_target = legacy_controller.compute(_beam02_controller_actions())
+    legacy_target = legacy_controller.compute(_sample_controller_actions())
     left_gripper_slice = slice(11, 13)
     right_gripper_slice = slice(20, 22)
-    assert torch.allclose(legacy_target[:, left_gripper_slice], torch.full((2, 2), 0.00635), atol=1.0e-7)
+    assert torch.allclose(legacy_target[:, left_gripper_slice], torch.full((2, 2), 0.0125), atol=1.0e-7)
     assert torch.allclose(legacy_target[:, right_gripper_slice], torch.full((2, 2), 0.05), atol=1.0e-7)
 
     limited_controller = _make_controller(controller_module, robot, control_dt=0.1)

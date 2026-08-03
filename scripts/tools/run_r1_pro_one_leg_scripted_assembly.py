@@ -28,7 +28,6 @@ from collections.abc import Callable
 
 from isaaclab.app import AppLauncher
 
-
 TASK_NAME = "Assembly-Benchmark-OneLeg-Direct-v0"
 DEFAULT_SCREW_ROTATION = -math.pi
 
@@ -255,10 +254,11 @@ if args_cli.record_camera:
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
+import assembly_benchmark.tasks  # noqa: F401
 import gymnasium as gym
 import torch
+from assembly_benchmark.assets.furniture.lab_table import LAB_TABLE_SURFACE_Z
 
-import isaaclab_tasks  # noqa: F401
 from isaaclab.markers import VisualizationMarkers
 from isaaclab.markers.config import FRAME_MARKER_CFG
 from isaaclab.utils.math import (
@@ -267,30 +267,31 @@ from isaaclab.utils.math import (
     quat_apply_inverse,
     subtract_frame_transforms,
 )
+
+import isaaclab_tasks  # noqa: F401
 from isaaclab_tasks.utils import parse_env_cfg
-
-import assembly_benchmark.tasks  # noqa: F401
-from assembly_benchmark.assets.furniture.lab_table import LAB_TABLE_SURFACE_Z
-
 
 OPEN_GRIPPER = 1.0
 CLOSE_GRIPPER = -1.0
 LEG4_TARGET_POS_TOP = (-0.05625, 0.046875, -0.05625)
 IDENTITY_QUAT = (1.0, 0.0, 0.0, 0.0)
 TOP_DOWN_GRIPPER_QUAT = (1.0, 0.0, 0.0, 0.0)
-_MARKERS: tuple[
-    VisualizationMarkers,
-    VisualizationMarkers,
-    VisualizationMarkers,
-    VisualizationMarkers,
-    VisualizationMarkers,
-] | None = None
+_MARKERS: (
+    tuple[
+        VisualizationMarkers,
+        VisualizationMarkers,
+        VisualizationMarkers,
+        VisualizationMarkers,
+        VisualizationMarkers,
+    ]
+    | None
+) = None
 _PLANNED_GRASP_POSE_B: torch.Tensor | None = None
 _PLANNED_INSERT_POSE_B: torch.Tensor | None = None
 _PLANNED_SCREW_POSE_B: torch.Tensor | None = None
 _LIFT_GUARD_ABORTED = False
-_SIM_RATE_STATS: "SimRateStats | None" = None
-_CAMERA_VIDEO_RECORDER: "CameraVideoRecorder | None" = None
+_SIM_RATE_STATS: SimRateStats | None = None
+_CAMERA_VIDEO_RECORDER: CameraVideoRecorder | None = None
 
 
 class SimRateStats:
@@ -438,10 +439,7 @@ class CameraVideoRecorder:
             self._writer.close()
             self._writer = None
         if self.frames_written > 0:
-            print(
-                "[INFO]: camera video saved "
-                f"path={self.video_path} frames={self.frames_written} fps={self.fps:.2f}"
-            )
+            print(f"[INFO]: camera video saved path={self.video_path} frames={self.frames_written} fps={self.fps:.2f}")
 
     def _ensure_writer(self) -> None:
         if self._writer is not None:
@@ -680,9 +678,7 @@ def _finger_center_in_root_frame(unwrapped, active_arm: str) -> torch.Tensor:
     return 0.5 * (finger_1_pos + finger_2_pos)
 
 
-def _finger_center_offset_from_ee_for_quat(
-    unwrapped, active_arm: str, target_quat_b: torch.Tensor
-) -> torch.Tensor:
+def _finger_center_offset_from_ee_for_quat(unwrapped, active_arm: str, target_quat_b: torch.Tensor) -> torch.Tensor:
     ee_pose = _active_ee_pose(unwrapped, active_arm)
     offset_b = _finger_center_in_root_frame(unwrapped, active_arm) - ee_pose[:, :3]
     offset_ee = quat_apply_inverse(ee_pose[:, 3:7], offset_b)
@@ -694,11 +690,7 @@ def _table_surface_z(unwrapped) -> float:
 
 
 def _table_safe_finger_center_z(unwrapped, desired_z: torch.Tensor) -> torch.Tensor:
-    min_center_z = (
-        _table_surface_z(unwrapped)
-        + args_cli.finger_collision_half_height
-        + args_cli.finger_table_clearance
-    )
+    min_center_z = _table_surface_z(unwrapped) + args_cli.finger_collision_half_height + args_cli.finger_table_clearance
     min_center_z_tensor = torch.full_like(desired_z, min_center_z)
     return torch.maximum(desired_z, min_center_z_tensor)
 
@@ -840,11 +832,7 @@ def _ee_pose_for_finger_center(
 def _ee_pose_for_fixed_finger_center(
     unwrapped, active_arm: str, finger_center_pos: torch.Tensor, target_quat_b: torch.Tensor
 ) -> torch.Tensor:
-    min_center_z = (
-        _table_surface_z(unwrapped)
-        + args_cli.finger_collision_half_height
-        + args_cli.finger_table_clearance
-    )
+    min_center_z = _table_surface_z(unwrapped) + args_cli.finger_collision_half_height + args_cli.finger_table_clearance
     current_z = float(finger_center_pos[0, 2].item())
     if current_z < min_center_z:
         print(
@@ -1031,9 +1019,7 @@ def _run_phase(
             target_finger_center = _target_finger_center_for_ee_pose(unwrapped, active_arm, resolved_target_pose)
             finger_center_delta_z = (finger_center[:, 2] - target_finger_center[:, 2]).mean()
             table_clearance = (
-                finger_center[:, 2]
-                - args_cli.finger_collision_half_height
-                - _table_surface_z(unwrapped)
+                finger_center[:, 2] - args_cli.finger_collision_half_height - _table_surface_z(unwrapped)
             ).mean()
             leg_error_xyz = _leg_pose_env(unwrapped)[:, :3] - final_leg_pose_env[:, :3]
             leg_error = torch.linalg.norm(leg_error_xyz, dim=-1).mean()
@@ -1327,9 +1313,7 @@ def _run_scripted_assembly(env) -> int:
             _print_final_status(unwrapped)
             return 1
 
-        leg_pos_in_finger, leg_quat_in_finger = _held_leg_relative_to_finger(
-            unwrapped, active_arm, leg_pose_after_lift
-        )
+        leg_pos_in_finger, leg_quat_in_finger = _held_leg_relative_to_finger(unwrapped, active_arm, leg_pose_after_lift)
         reorient_leg_pose = leg_pose_after_lift.clone()
         high_insert_z = torch.maximum(
             final_leg_pose_env[:, 2] + args_cli.overhead_clearance + args_cli.insert_clearance,
@@ -1598,9 +1582,7 @@ def _run_scripted_assembly(env) -> int:
             screw_delta_quat = _axis_angle_quat(unwrapped.device, (0.0, 0.0, 1.0), screw_cycle_rotation)
             screw_target_leg_pose = screw_start_leg_pose.clone()
             screw_target_leg_pose[:, 2] -= args_cli.screw_down_depth
-            screw_target_leg_pose[:, 3:7] = _normalize_quat(
-                _quat_mul(screw_delta_quat, screw_start_leg_pose[:, 3:7])
-            )
+            screw_target_leg_pose[:, 3:7] = _normalize_quat(_quat_mul(screw_delta_quat, screw_start_leg_pose[:, 3:7]))
             screw_pose = _ee_pose_for_held_leg_pose_without_lift(
                 unwrapped,
                 active_arm,
@@ -1749,9 +1731,7 @@ def _run_scripted_assembly(env) -> int:
             steps=args_cli.phase_steps,
         )
 
-        rel_pos_after_screw, rel_quat_after_screw, pos_error_after_screw = _final_relative_pose_diagnostics(
-            unwrapped
-        )
+        rel_pos_after_screw, rel_quat_after_screw, pos_error_after_screw = _final_relative_pose_diagnostics(unwrapped)
         rel_ori_error_after_screw = _quat_angle_error(
             rel_quat_after_screw,
             _quat_tensor(unwrapped.device, IDENTITY_QUAT),

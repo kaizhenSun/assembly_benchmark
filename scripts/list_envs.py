@@ -31,10 +31,9 @@ simulation_app = app_launcher.app
 
 """Rest everything follows."""
 
+import assembly_benchmark.tasks  # noqa: F401
 import gymnasium as gym
 from prettytable import PrettyTable
-
-import assembly_benchmark.tasks  # noqa: F401
 
 
 def main():
@@ -51,16 +50,15 @@ def main():
     index = 0
     # acquire all extension environment names
     for task_spec in gym.registry.values():
-        if (
-            str(task_spec.entry_point).startswith("assembly_benchmark.")
-            and (args_cli.keyword is None or args_cli.keyword in task_spec.id)
+        if str(task_spec.entry_point).startswith("assembly_benchmark.") and (
+            args_cli.keyword is None or args_cli.keyword in task_spec.id
         ):
             # add details to table
             table.add_row([index + 1, task_spec.id, task_spec.entry_point, task_spec.kwargs["env_cfg_entry_point"]])
             # increment count
             index += 1
 
-    print(table)
+    print(table, flush=True)
 
 
 if __name__ == "__main__":

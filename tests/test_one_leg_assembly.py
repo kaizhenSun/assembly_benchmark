@@ -10,6 +10,8 @@ import re
 from math import isclose, sqrt
 from pathlib import Path
 
+import assembly_benchmark.assembly.fabrica as fabrica_assemblies
+import assembly_benchmark.assembly.furniture as furniture_assemblies
 import pytest
 from assembly_benchmark.assembly import (
     DEFAULT_ORI_BOUND,
@@ -63,7 +65,7 @@ CHAIR_PART_NAMES = (
     "chair_nut2",
 )
 EXPECTED_PART_NAMES = {
-    "beam": ("beam_socket_2", "beam_plug_0"),
+    "beam": ("beam_part_0", "beam_part_1", "beam_part_2", "beam_part_3", "beam_part_6"),
     "cabinet": ("base_tag", "cabinet_body", "cabinet_door_left", "cabinet_door_right", "cabinet_top"),
     "chair": CHAIR_PART_NAMES,
     "desk": ("base_tag", "desk_top", "desk_leg1", "desk_leg2", "desk_leg3", "desk_leg4"),
@@ -75,7 +77,12 @@ EXPECTED_PART_NAMES = {
     "stool": ("base_tag", "stool_seat", "stool_leg1", "stool_leg2", "stool_leg3"),
 }
 EXPECTED_RELATIONS = {
-    "beam": (("beam_socket_2", "beam_plug_0", 0, 1, DEFAULT_ORI_BOUND),),
+    "beam": (
+        ("beam_part_2", "beam_part_0", 0, 1, DEFAULT_ORI_BOUND),
+        ("beam_part_3", "beam_part_1", 0, 1, DEFAULT_ORI_BOUND),
+        ("beam_part_6", "beam_part_2", 0, 1, DEFAULT_ORI_BOUND),
+        ("beam_part_6", "beam_part_3", 0, 1, DEFAULT_ORI_BOUND),
+    ),
     "cabinet": (
         ("cabinet_body", "cabinet_door_right", 0, 1, DEFAULT_ORI_BOUND),
         ("cabinet_body", "cabinet_door_left", 0, 1, DEFAULT_ORI_BOUND),
@@ -165,6 +172,9 @@ def _assert_tuple_close(
 
 def test_assembly_registry_contract() -> None:
     assert available_assemblies() == EXPECTED_ASSEMBLIES
+    assert fabrica_assemblies.make_beam_assembly is make_beam_assembly
+    assert furniture_assemblies.make_one_leg_assembly is make_one_leg_assembly
+    assert furniture_assemblies.make_stool_assembly is make_stool_assembly
     for assembly_name, factory in ASSEMBLY_FACTORIES.items():
         with pytest.raises(ValueError, match="already registered"):
             register_assembly(assembly_name, factory)
@@ -254,8 +264,9 @@ def test_assembly_spec_rejects_invalid_dynamic_physics_params() -> None:
 
 
 @pytest.mark.parametrize("assembly_name", EXPECTED_ASSEMBLIES)
-def test_flat_assembly_module_exports(assembly_name: str) -> None:
-    module = importlib.import_module(f"assembly_benchmark.assembly.{assembly_name}")
+def test_domain_assembly_module_exports(assembly_name: str) -> None:
+    domain = "fabrica" if assembly_name == "beam" else "furniture"
+    module = importlib.import_module(f"assembly_benchmark.assembly.{domain}.{assembly_name}")
     factory = getattr(module, f"make_{assembly_name}_assembly")
 
     assert assembly_name == module.ASSEMBLY_NAME
@@ -263,6 +274,8 @@ def test_flat_assembly_module_exports(assembly_name: str) -> None:
     assert module.PARTS
     assert module.RELATIONS
     assert factory().name == assembly_name
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module(f"assembly_benchmark.assembly.{assembly_name}")
 
 
 @pytest.mark.parametrize("assembly_name", EXPECTED_ASSEMBLIES)

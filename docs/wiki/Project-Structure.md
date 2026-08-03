@@ -8,16 +8,20 @@ This page maps the functional files without expanding generated USD contents, me
 ```text
 source/assembly_benchmark/
   assembly_benchmark/
-    assembly/                         # assembly specs, relations, registry, and Isaac asset cfg conversion
+    assembly/                         # shared specs, registry, and Isaac asset cfg conversion
+      fabrica/                        # Beam specification and Fabrica specialist plans
+      furniture/                      # furniture assembly specifications
     tasks/direct/assembly_benchmark/  # generated scene/env cfgs, Gym registration, runtime environment, RL cfgs
-    tasks/direct/r1_pro_beam_insertion/ # dedicated Beam02 left-insertion environment and RL-Games cfg
-    planning/                         # dependency-light analytic assembly paths
-    robots/                           # R1 Pro articulation configuration and joint/link constants
-    controllers/                      # bimanual joint-position and Differential IK controllers
+    tasks/direct/fabrica/             # Fabrica environment, tensor algorithms, and RL-Games cfg
+    robots/                           # R1 Pro and Piper runtime configurations
+    utils/                            # reusable conversion and source-expansion helpers
+    controllers/                      # bimanual and generic single-arm Differential IK controllers
     sensors/                          # R1 Pro RGB-D/semantic camera configuration helpers
     assets/
-      furniture/                      # assembly URDF, mesh, tag, and generated USD assets
+      fabrica/                        # Fabrica assembly URDF, mesh, and generated USD assets
+      furniture/                      # furniture assembly URDF, mesh, tag, and generated USD assets
       robots/r1_pro/                  # R1 Pro URDF, meshes, and generated fixed-base USD
+      robots/piper/                   # Piper sources, reusable USD, and relation-paired fixed-plug USDs
   config/extension.toml               # Isaac Lab extension metadata
 
 scripts/
@@ -39,7 +43,7 @@ docs/wiki/                            # canonical GitHub Wiki source
 ## Runtime Flow
 
 ```text
-AssemblySpec in assembly/<name>.py
+AssemblySpec in assembly/{fabrica,furniture}/<name>.py
   -> assembly/registry.py
   -> assembly/isaac.py converts part metadata to Isaac Lab asset cfgs
   -> assembly_benchmark_env_cfg.py builds scene and environment cfg classes
@@ -57,7 +61,8 @@ class.
 ### Assembly definitions
 
 - `assembly/specs.py` defines parts, target poses, relations, validation, and asset-generation metadata.
-- `assembly/<name>.py` contains the scene-specific parts, initial poses, physical properties, and assembly relations.
+- `assembly/fabrica/` contains the Beam specification and Fabrica specialist relation plans.
+- `assembly/furniture/` contains furniture-specific parts, initial poses, physical properties, and relations.
 - `assembly/registry.py` maps stable assembly names to their spec factories.
 - `assembly/isaac.py` turns a part spec into an Isaac Lab `AssetBaseCfg` or `RigidObjectCfg`.
 
@@ -68,28 +73,35 @@ class.
 - The task package `__init__.py` registers the default alias and each explicit task id, together with RL backend cfgs.
 - `assembly_benchmark_env.py` implements reset, observation, action, reward, and success behavior.
 - `agents/` stores PPO configurations consumed by the RL wrapper scripts.
-- `r1_pro_beam_insertion/` implements the camera-free Beam 0-to-2 specialist task with 3D residual actions,
-  asymmetric observations, socket noise, and bimanual whole-body IK that holds the right end-effector pose.
-- `planning/geometric_insertion.py` defines the simulator-independent 20.2 mm straight insertion segment used by
-  the Beam02 baseline and its tests.
+- `fabrica/` implements the original fixed-plug specialist semantics over a complete assembly graph, using paired
+  heterogeneous assets, 3D residual actions, asymmetric observations, and single-arm Differential IK.
+- `fabrica/fabrica_algo_utils.py` contains the task-local tensor geometry, reward, observation, termination, and
+  metric helpers.
 
 ### Robot, control, and sensing
 
 - `robots/r1_pro.py` defines the R1 Pro articulation, joint groups, end-effector links, home pose, and actuator
   settings.
+- `robots/piper.py` defines the Piper articulation, six arm joints, master gripper joint, and generated-asset paths.
+- `utils/piper_urdf.py` expands the packaged Piper Xacro without ROS for reusable and fixed-plug asset conversion.
 - `controllers/r1_pro.py` maps the 16D bimanual action to arm, gripper, and optional torso joint targets through
   Differential IK.
+- `controllers/single_arm.py` maps an absolute EE pose and one normalized gripper command through damped-least-squares
+  IK, fixed EE/IK offsets, soft limits, and velocity-step limits.
 - `sensors/r1_pro_camera.py` defines the R1 Pro head-camera metadata and creates its vectorized RGB-D/semantic sensor.
 
 ## Assets
 
-- `assets/furniture/<assembly>/` groups source URDFs, meshes and tags, plus generated USD folders for each assembly.
+- `assets/fabrica/<assembly>/` groups Fabrica source parts with their generated USDs and unique fixed-plug socket
+  wrappers.
+- `assets/furniture/<assembly>/` groups the remaining source URDFs, meshes and tags with generated USD folders.
 - `assets/furniture/lab_table/` contains the shared work table used by the base scene.
 - `assets/robots/r1_pro/` contains the robot source model and fixed-base USD loaded by the environment.
-- `assets/robots/r1_pro_beam02/` contains the task-specific R1 Pro USD with Beam plug 0 fixed to the left gripper.
+- `assets/robots/piper/` contains the MIT-licensed Piper sources, reusable fixed-base USD, and four fixed-plug Beam
+  relation variants under `fixed_plug/beam/`. `NOTICE.md` records the upstream source and regeneration flow.
 
-Assembly USD assets are generated offline by `generate_assembly_usd_assets.py`. The R1 Pro USD is generated and
-post-processed by `convert_r1_pro_urdf.py`. Runtime tasks load checked-in USD assets directly.
+Assembly USD assets are generated offline by `generate_assembly_usd_assets.py`. Robot assets are generated and
+post-processed by their scripts under `scripts/tools/`. Runtime tasks load checked-in USD assets directly.
 
 ## Scripts
 
@@ -98,11 +110,12 @@ The main script groups are:
 - **Smoke tests:** `list_envs.py`, `zero_agent.py`, and `random_agent.py` verify registration, scene creation, and
   control.
 - **Visualization:** `preview_assembly_assembled_pose.py` inspects target relations and assembled geometry.
-- **Robot tools:** `run_r1_pro_diff_ik.py`, `run_r1_pro_keyboard_teleop.py`, and
+- **Robot tools:** `run_r1_pro_diff_ik.py`, `run_piper_diff_ik.py`, `run_r1_pro_keyboard_teleop.py`, and
   `run_r1_pro_one_leg_scripted_assembly.py` exercise reusable robot control.
 - **Asset tools:** `generate_assembly_usd_assets.py` and `convert_r1_pro_urdf.py` prepare runtime USD assets.
-- **Beam02 tools:** `generate_r1_pro_beam02_asset.py` builds the fixed-plug robot and
-  `run_r1_pro_beam02_geometric_insertion.py` replays its zero-residual path.
+- **Piper/Fabrica tools:** `convert_piper_urdf.py` performs ROS-free source expansion,
+  `generate_fabrica_fixedplug_assets.py` builds relation-paired robots and unique socket parts, and
+  `run_fabrica_fixplug_openloop.py` validates every relation with the zero-residual policy.
 - **Diagnostics:** joint-response scripts isolate controller and actuator behavior.
 - **RL wrappers:** each backend directory supplies matching train/play entry points while task-side agent cfgs remain
   under the environment package.
@@ -113,6 +126,8 @@ The tests mirror the public contracts:
 
 - assembly registry, parts, relations, reset lists, and asset paths;
 - R1 Pro configuration, head-camera metadata, gripper defaults, and robot assets.
+- Piper xacro expansion, all-relation FK and grasp coverage, generic single-arm IK, fixed-plug physics, and PPO
+  actor/critic startup.
 
 Dependency-light tests run without Isaac Sim. Runtime-specific tests use skip markers when simulator modules are not
 available. Wiki source is maintained beside the code and synchronized by `.github/workflows/sync-wiki.yml`.
@@ -121,10 +136,11 @@ available. Wiki source is maintained beside the code and synchronized by `.githu
 
 | Goal | Primary location |
 | --- | --- |
-| Add or change an assembly | `assembly/<name>.py`, `assembly/registry.py`, `assets/furniture/<name>/` |
+| Add or change an assembly | `assembly/{furniture,fabrica}/<name>.py`, `assembly/registry.py`, `assets/{furniture,fabrica}/<name>/` |
 | Change observations, rewards, resets, or success | `tasks/direct/assembly_benchmark/` |
 | Change R1 Pro links or actuators | `robots/r1_pro.py`, `assets/robots/r1_pro/` |
-| Change action-to-joint control | `controllers/r1_pro.py` |
+| Change Piper links or actuators | `robots/piper.py`, `assets/robots/piper/` |
+| Change action-to-joint control | `controllers/r1_pro.py`, `controllers/single_arm.py` |
 | Change R1 Pro head-camera parameters | `sensors/r1_pro_camera.py` |
 | Add a runnable workflow | `scripts/` |
 | Change an RL backend configuration | task `agents/` plus the matching `scripts/<backend>/` wrapper |

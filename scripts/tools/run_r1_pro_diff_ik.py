@@ -23,7 +23,6 @@ import os
 
 from isaaclab.app import AppLauncher
 
-
 parser = argparse.ArgumentParser(description="Run a visual R1 Pro bimanual Differential IK demo.")
 parser.add_argument("--num_envs", type=int, default=1, help="Number of R1 Pro environments to spawn.")
 parser.add_argument(
@@ -120,15 +119,6 @@ app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
 import torch
-
-import isaaclab.sim as sim_utils
-from isaaclab.assets import AssetBaseCfg
-from isaaclab.markers import VisualizationMarkers
-from isaaclab.markers.config import FRAME_MARKER_CFG
-from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
-from isaaclab.utils import configclass
-from isaaclab.utils.math import combine_frame_transforms, subtract_frame_transforms
-
 from assembly_benchmark.controllers import BimanualDifferentialIKController
 from assembly_benchmark.robots.r1_pro import (
     R1_PRO_CFG,
@@ -142,6 +132,14 @@ from assembly_benchmark.robots.r1_pro import (
     R1_PRO_RIGHT_IK_LINK_NAME,
     R1_PRO_TORSO_JOINT_NAMES,
 )
+
+import isaaclab.sim as sim_utils
+from isaaclab.assets import AssetBaseCfg
+from isaaclab.markers import VisualizationMarkers
+from isaaclab.markers.config import FRAME_MARKER_CFG
+from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
+from isaaclab.utils import configclass
+from isaaclab.utils.math import combine_frame_transforms, subtract_frame_transforms
 
 
 @configclass

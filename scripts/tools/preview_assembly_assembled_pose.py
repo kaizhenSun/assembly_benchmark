@@ -25,7 +25,6 @@ from dataclasses import dataclass
 
 from isaaclab.app import AppLauncher
 
-
 ONE_LEG_FULL_TARGET_PART_NAMES = (
     "square_table_leg1",
     "square_table_leg2",
@@ -98,19 +97,18 @@ if args_cli.target_index < 0:
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
+import assembly_benchmark.tasks  # noqa: F401
 import gymnasium as gym
 import torch
+from assembly_benchmark.assembly import AssemblyRelationSpec, AssemblySpec, make_assembly
 
 import isaaclab.sim as sim_utils
-import isaaclab_tasks  # noqa: F401
 from isaaclab.markers import VisualizationMarkers
 from isaaclab.markers.config import FRAME_MARKER_CFG
 from isaaclab.utils.math import combine_frame_transforms, subtract_frame_transforms
+
+import isaaclab_tasks  # noqa: F401
 from isaaclab_tasks.utils import parse_env_cfg
-
-from assembly_benchmark.assembly import AssemblyRelationSpec, AssemblySpec, make_assembly
-
-import assembly_benchmark.tasks  # noqa: F401
 
 
 @dataclass(frozen=True)
@@ -264,11 +262,7 @@ def _preview_placements(assembly: AssemblySpec, mode: str) -> tuple[PreviewPlace
 def _validate_scene_parts(unwrapped, placements: tuple[PreviewPlacement, ...]) -> None:
     """Validate that selected placement parts exist in the loaded scene."""
     duplicate_children = sorted(
-        {
-            placement.child
-            for placement in placements
-            if sum(other.child == placement.child for other in placements) > 1
-        }
+        {placement.child for placement in placements if sum(other.child == placement.child for other in placements) > 1}
     )
     if duplicate_children:
         duplicates = ", ".join(duplicate_children)
@@ -504,9 +498,7 @@ def main() -> int:
 
         print(
             "[INFO]: Previewing placements: "
-            + ", ".join(
-                f"{placement.relation_label}[target={placement.target_index}]" for placement in placements
-            ),
+            + ", ".join(f"{placement.relation_label}[target={placement.target_index}]" for placement in placements),
             flush=True,
         )
         print("[INFO]: Close the simulator window or press Ctrl+C to exit.", flush=True)

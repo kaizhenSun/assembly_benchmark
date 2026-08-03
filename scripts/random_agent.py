@@ -32,13 +32,12 @@ simulation_app = app_launcher.app
 
 """Rest everything follows."""
 
+import assembly_benchmark.tasks  # noqa: F401
 import gymnasium as gym
 import torch
 
 import isaaclab_tasks  # noqa: F401
 from isaaclab_tasks.utils import parse_env_cfg
-
-import assembly_benchmark.tasks  # noqa: F401
 
 
 def main():

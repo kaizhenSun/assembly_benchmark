@@ -16,7 +16,10 @@ Quat = tuple[float, float, float, float]
 Vec3 = tuple[float, float, float]
 PartBodyType = Literal["visual", "static", "dynamic", "kinematic"]
 
-ASSEMBLY_ASSET_ROOT = Path(__file__).resolve().parents[1] / "assets" / "furniture"
+_PACKAGE_ASSET_ROOT = Path(__file__).resolve().parents[1] / "assets"
+ASSEMBLY_ASSET_ROOT = _PACKAGE_ASSET_ROOT / "furniture"
+_FABRICA_ASSET_ROOT = _PACKAGE_ASSET_ROOT / "fabrica"
+_FABRICA_ASSEMBLIES = frozenset(("beam",))
 IDENTITY_QUAT: Quat = (1.0, 0.0, 0.0, 0.0)
 DEFAULT_TARGET_INDEX = 0
 DEFAULT_POS_THRESHOLD: Vec3 = (0.010, 0.005, 0.010)
@@ -52,7 +55,8 @@ class AssemblyPartSpec:
 
 def assembly_asset_root(name: str) -> Path:
     """Return the checked-in asset root for an assembly."""
-    return ASSEMBLY_ASSET_ROOT / name
+    root = _FABRICA_ASSET_ROOT if name in _FABRICA_ASSEMBLIES else ASSEMBLY_ASSET_ROOT
+    return root / name
 
 
 def make_part(

@@ -5,4 +5,5 @@
 
 """Robot asset configurations used by assembly_benchmark."""
 
+from .piper import *  # noqa: F401, F403
 from .r1_pro import *  # noqa: F401, F403
