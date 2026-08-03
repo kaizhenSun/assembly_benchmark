@@ -322,6 +322,12 @@ def test_piper_and_pika2_urdfs_compose_without_ros_dependencies() -> None:
     assert {"base_link", "link6", "gripper_base_link", "gripper_left_link", "gripper_right_link"} <= link_names
     assert "world" not in link_names
 
+    arm_joint_velocities = {
+        joint_name: float(root.find(f"./joint[@name='{joint_name}']/limit").get("velocity"))
+        for joint_name in PIPER_ARM_JOINT_NAMES
+    }
+    assert arm_joint_velocities == {joint_name: 3.0 for joint_name in PIPER_ARM_JOINT_NAMES}
+
     base_joint = root.find("./joint[@name='gripper_base_joint']")
     assert base_joint is not None
     assert base_joint.find("parent").get("link") == "link6"
@@ -333,6 +339,8 @@ def test_piper_and_pika2_urdfs_compose_without_ros_dependencies() -> None:
     right_limit = root.find("./joint[@name='right_joint']/limit")
     assert (float(left_limit.get("lower")), float(left_limit.get("upper"))) == pytest.approx((0.0, 0.05))
     assert (float(right_limit.get("lower")), float(right_limit.get("upper"))) == pytest.approx((-0.05, 0.0))
+    assert float(left_limit.get("velocity")) == pytest.approx(1.0)
+    assert float(right_limit.get("velocity")) == pytest.approx(1.0)
     for mesh in root.findall(".//mesh"):
         mesh_path = Path(mesh.get("filename"))
         assert mesh_path.is_absolute()

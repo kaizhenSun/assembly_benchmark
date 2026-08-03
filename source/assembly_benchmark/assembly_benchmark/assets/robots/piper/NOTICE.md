@@ -15,6 +15,9 @@ The source projects declare the MIT license reproduced in `LICENSE.agx-arm-urdf-
 relation-specific fixed-plug USDs under `fixed_plug/` are generated integration assets. Fabrica socket USDs are
 stored with their assembly parts under `assets/fabrica/<assembly>/usd/fixed_plug_socket/`. Regenerate them with:
 
+The local Piper arm URDF sets the maximum velocity of joints 1-6 to 3 rad/s to match the maximum configurable
+joint speed documented by the official Piper SDK, rather than the 5 rad/s limits in the original simulation URDF.
+
 ```bash
 python scripts/tools/convert_piper_urdf.py --force
 python scripts/tools/generate_fabrica_fixedplug_assets.py --assembly beam --overwrite

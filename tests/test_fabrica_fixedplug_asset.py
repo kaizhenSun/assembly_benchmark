@@ -97,6 +97,10 @@ def test_all_fixedplug_usds_have_common_topology_and_relation_transforms() -> No
     assert tuple(base_mount.GetLocalPos0Attr().Get()) == pytest.approx((0.0, 0.0, 0.0))
     base_mount_rot = base_mount.GetLocalRot0Attr().Get()
     assert abs(float(base_mount_rot.GetReal())) == pytest.approx(1.0)
+    for joint_index in range(1, 7):
+        joint = base_stage.GetPrimAtPath(base_root_path.AppendPath(f"joints/joint{joint_index}"))
+        max_velocity_deg_s = joint.GetAttribute("physxJoint:maxJointVelocity").Get()
+        assert math.radians(max_velocity_deg_s) == pytest.approx(3.0)
 
     topologies = []
     for relation in BEAM_FABRICA_PLAN.relations:
@@ -150,6 +154,10 @@ def test_all_fixedplug_usds_have_common_topology_and_relation_transforms() -> No
             "gripper_right_link",
         }
         joint_root = root_path.AppendChild("joints")
+        for joint_index in range(1, 7):
+            joint = stage.GetPrimAtPath(joint_root.AppendChild(f"joint{joint_index}"))
+            max_velocity_deg_s = joint.GetAttribute("physxJoint:maxJointVelocity").Get()
+            assert math.radians(max_velocity_deg_s) == pytest.approx(3.0)
         left_joint = UsdPhysics.PrismaticJoint(stage.GetPrimAtPath(joint_root.AppendChild("left_joint")))
         right_joint = UsdPhysics.PrismaticJoint(stage.GetPrimAtPath(joint_root.AppendChild("right_joint")))
         assert left_joint and right_joint
