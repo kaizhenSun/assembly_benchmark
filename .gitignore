@@ -66,3 +66,4 @@ _build
 
 # Docker history
 .isaac-lab-docker-history
+.vscode/
